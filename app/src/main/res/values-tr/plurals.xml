@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="items_selected">
+        <item quantity="one">%d öğe seçildi</item>
+        <item quantity="other">%d öğe seçildi</item>
+    </plurals>
+    <plurals name="delete_confirmation_title">
+        <item quantity="one">%d Dosyayı Sil</item>
+        <item quantity="other">%d Dosyayı Sil</item>
+    </plurals>
+</resources>

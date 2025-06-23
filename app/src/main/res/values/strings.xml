@@ -1,25 +1,60 @@
 <resources>
     <string name="app_name">Smart Archive</string>
 
-    <string name="details_category">Kategori: %1$s</string>
-    <string name="details_date">Tarih: %1$s</string>
-    <string name="details_size">Boyut: %1$s</string>
-    <string name="action_share">Paylaş</string>
-    <string name="action_delete">Sil</string>
+    <string name="details_category">Category: %1$s</string>
+    <string name="details_date">Date: %1$s</string>
+    <string name="details_size">Size: %1$s</string>
+    <string name="action_share">Share</string>
+    <string name="action_delete">Delete</string>
 
-    <string name="menu_title_toggle_view">Görünümü Değiştir</string>
-    <string name="menu_title_sort">Sırala</string>
-    <string name="menu_title_search">Ara</string>
+    <string name="menu_title_toggle_view">Toggle View</string>
+    <string name="menu_title_sort">Sort</string>
+    <string name="menu_title_search">Search</string>
 
-    <string name="menu_title_details">Detay</string>
+    <string name="menu_title_details">Details</string>
 
-    <string name="empty_view_title">Arşivinizde Henüz Dosya Yok</string>
-    <string name="empty_view_subtitle">Başlamak için başka bir uygulamadan dosya paylaşın.</string>
-    <string name="empty_view_icon_content_description">Boş Arşiv İkonu</string>
+    <string name="empty_view_title">Your Archive is Empty</string>
+    <string name="empty_view_subtitle">Share a file from another app to get started.</string>
+    <string name="empty_view_icon_content_description">Empty Archive Icon</string>
 
-    <string name="file_preview_content_description">Dosya önizlemesi</string>
-    <string name="Ayarlar">Ayarlar</string>
-    <string name="dosya_tipi_konu">Dosya Tipi İkonu</string>
+    <string name="file_preview_content_description">File preview</string>
+    <string name="Ayarlar">Settings</string>
+    <string name="dosya_tipi_konu">File Type Icon</string>
 
+    <string name="sort_dialog_title">Sort by</string>
+    <string name="sort_date_desc">Date (Newest to Oldest)</string>
+    <string name="sort_name_asc">Name (A-Z)</string>
+    <string name="sort_name_desc">Name (Z-A)</string>
+    <string name="sort_size_asc">Size (Smallest to Largest)</string>
+    <string name="sort_size_desc">Size (Largest to Smallest)</string>
+    <string name="cancel">Cancel</string>
+    <string name="yes_delete">Yes, Delete</string>
+    <string name="delete_confirmation_message">Are you sure you want to permanently delete the selected files?</string>
+    <string name="error_file_not_found">Error: File not found.</string>
+    <string name="error_no_app_to_open">No application found to open this file type.</string>
+    <string name="files_shared_not_found">No files found to share.</string>
+    <string name="error_no_app_for_action">No application found to perform this action.</string>
+    <string name="files_deleted_toast">%1$d files deleted.</string>
+    <string name="file_deleted_toast">1 file deleted.</string>
+    <string name="give_file_a_name">Give the file a name</string>
+    <string name="save">Save</string>
+    <string name="file_not_received">File could not be received.</string>
+    <string name="file_saved_as">Saved as \'%1$s\'!</string>
+    <string name="error_file_not_saved">Error: File could not be saved.</string>
+    <string name="error_invalid_name">Please enter a valid name.</string>
+    <string name="app_theme">App Theme</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_system">System Default</string>
+
+    <string name="file_already_exists">File Already Exists</string>
+    <string name="overwrite_confirmation">A file named \'%1$s\' already exists. Do you want to replace it?</string>
+    <string name="replace">Replace</string>
+
+    <string name="category_office">Office Files</string>
+    <string name="category_images">Image Files</string>
+    <string name="category_videos">Video Files</string>
+    <string name="category_audio">Audio Files</string>
+    <string name="category_archives">Archive Files</string>
+    <string name="category_other">Other Files</string>
 </resources>
-

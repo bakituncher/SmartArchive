@@ -32,7 +32,7 @@ class SaveFileActivity : AppCompatActivity() {
                 val originalFileName = getFileName(fileUri)
                 showSaveDialog(fileUri, originalFileName)
             } else {
-                Toast.makeText(this, "Dosya alınamadı.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.file_not_received), Toast.LENGTH_SHORT).show()
                 finish()
             }
         } else {
@@ -41,11 +41,9 @@ class SaveFileActivity : AppCompatActivity() {
     }
 
     private fun showSaveDialog(fileUri: Uri, originalFileName: String) {
-        // Dosya adını ve uzantısını ayır
         val fileExtension = originalFileName.substringAfterLast('.', "")
         val fileNameWithoutExtension = originalFileName.substringBeforeLast('.', originalFileName)
 
-        // Dialog için özel bir layout oluştur
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(50, 40, 50, 0)
@@ -78,9 +76,9 @@ class SaveFileActivity : AppCompatActivity() {
 
 
         AlertDialog.Builder(this)
-            .setTitle("Dosyaya Bir İsim Ver")
+            .setTitle(getString(R.string.give_file_a_name))
             .setView(layout)
-            .setPositiveButton("Kaydet") { dialog, _ ->
+            .setPositiveButton(getString(R.string.save)) { dialog, _ ->
                 val newBaseName = editTextFileName.text.toString().trim()
                 if (newBaseName.isNotBlank()) {
                     val newName = if (fileExtension.isNotEmpty()) {
@@ -90,22 +88,21 @@ class SaveFileActivity : AppCompatActivity() {
                     }
 
                     if (copyFileToInternalStorage(fileUri, newName)) {
-                        Toast.makeText(this, "'$newName' adıyla kaydedildi!", Toast.LENGTH_LONG).show()
-                        // MainActivity'yi başlatarak listenin güncellenmesini tetikle
+                        Toast.makeText(this, getString(R.string.file_saved_as, newName), Toast.LENGTH_LONG).show()
                         val mainActivityIntent = Intent(this, MainActivity::class.java).apply {
                             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                         }
                         startActivity(mainActivityIntent)
                     } else {
-                        Toast.makeText(this, "Hata: Dosya kaydedilemedi.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, getString(R.string.error_file_not_saved), Toast.LENGTH_LONG).show()
                     }
                 } else {
-                    Toast.makeText(this, "Lütfen geçerli bir isim girin.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.error_invalid_name), Toast.LENGTH_SHORT).show()
                 }
                 dialog.dismiss()
                 finish()
             }
-            .setNegativeButton("İptal") { dialog, _ ->
+            .setNegativeButton(getString(R.string.cancel)) { dialog, _ ->
                 dialog.cancel()
                 finish()
             }
@@ -138,11 +135,8 @@ class SaveFileActivity : AppCompatActivity() {
         }
     }
 
-    // --- DÜZELTME ---
-    // Gereksiz kontrol kaldırıldı ve fonksiyon daha güvenli hale getirildi.
     private fun getFileName(uri: Uri): String {
         var result: String? = null
-        // İlk olarak en güvenilir yöntem olan content resolver'ı dene
         if (uri.scheme == "content") {
             val cursor = contentResolver.query(uri, null, null, null, null)
             cursor?.use {
@@ -155,23 +149,16 @@ class SaveFileActivity : AppCompatActivity() {
             }
         }
 
-        // Eğer ilk yöntem işe yaramazsa, dosya yolunu (path) ayrıştırmayı dene.
         if (result == null) {
-            // uri.path null olabilir, bu yüzden '?' ile güvenli çağrı yapıyoruz.
             result = uri.path?.let { path ->
-                // lastIndexOf, '/' bulamazsa -1 döner.
                 val cut = path.lastIndexOf('/')
                 if (cut != -1) {
-                    // Eğer '/' bulunduysa, ondan sonraki kısmı al.
                     path.substring(cut + 1)
                 } else {
-                    // Bulunmadıysa, yolun kendisini dosya adı olarak kabul et.
                     path
                 }
             }
         }
-
-        // Sonuç hala null ise, varsayılan bir isim döndür.
         return result ?: "isimsiz_dosya"
     }
 }

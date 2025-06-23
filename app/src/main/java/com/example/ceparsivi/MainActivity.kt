@@ -9,6 +9,7 @@ import android.view.MenuItem
 import android.view.View
 import android.webkit.MimeTypeMap
 import android.widget.Toast
+import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
@@ -42,13 +43,13 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         SIZE_DESC
     }
 
-    private val categoryOrder = listOf(
-        "Ofis Dosyaları",
-        "Resim Dosyaları",
-        "Video Dosyaları",
-        "Ses Dosyaları",
-        "Arşiv Dosyaları",
-        "Diğer Dosyalar"
+    private val categoryOrderResIds = listOf(
+        R.string.category_office,
+        R.string.category_images,
+        R.string.category_videos,
+        R.string.category_audio,
+        R.string.category_archives,
+        R.string.category_other
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,7 +59,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         setSupportActionBar(binding.toolbar)
         setupRecyclerView()
 
-        // Sağ alttaki ayarlar butonuna tıklama dinleyicisi ekle
         binding.buttonSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
@@ -81,10 +81,8 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.main_menu, menu)
-
         val viewToggleItem = menu.findItem(R.id.action_toggle_view)
         viewToggleItem.setIcon(if (currentViewMode == ViewMode.LIST) R.drawable.ic_view_grid else R.drawable.ic_view_list)
-
         val searchItem = menu.findItem(R.id.action_search)
         val searchView = searchItem.actionView as? SearchView
         searchView?.setOnQueryTextListener(this)
@@ -119,7 +117,20 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             val gridLayoutManager = GridLayoutManager(this, 3)
             gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                 override fun getSpanSize(position: Int): Int {
-                    return if (position < fileAdapter.currentList.size && fileAdapter.getItemViewType(position) == 0) 3 else 1
+                    // DÜZELTME: Olası bir "yarış koşulu" (race condition) kaynaklı çökmeyi
+                    // engellemek için try-catch bloğu eklendi. Bu, uygulamanın daha stabil
+                    // çalışmasını sağlar.
+                    return try {
+                        if (fileAdapter.getItemViewType(position) == ArchivedFileAdapter.VIEW_TYPE_HEADER) {
+                            3 // Başlıklar için 3 sütunluk yer kapla
+                        } else {
+                            1 // Dosyalar için 1 sütunluk yer kapla
+                        }
+                    } catch (e: Exception) {
+                        // Bir hata durumunda (örn: liste güncellenirken pozisyon geçersiz kalırsa)
+                        // güvenli bir varsayılan değer döndür.
+                        1
+                    }
                 }
             }
             binding.recyclerViewFiles.layoutManager = gridLayoutManager
@@ -130,15 +141,15 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     private fun showSortDialog() {
         val sortOptions = arrayOf(
-            "Tarihe Göre (Yeniden Eskiye)",
-            "İsme Göre (A-Z)",
-            "İsme Göre (Z-A)",
-            "Boyuta Göre (Küçükten Büyüğe)",
-            "Boyuta Göre (Büyükten Küçüğe)"
+            getString(R.string.sort_date_desc),
+            getString(R.string.sort_name_asc),
+            getString(R.string.sort_name_desc),
+            getString(R.string.sort_size_asc),
+            getString(R.string.sort_size_desc)
         )
         val currentSelection = currentSortOrder.ordinal
         AlertDialog.Builder(this)
-            .setTitle("Sıralama Ölçütü")
+            .setTitle(getString(R.string.sort_dialog_title))
             .setSingleChoiceItems(sortOptions, currentSelection) { dialog, which ->
                 currentSortOrder = SortOrder.entries[which]
                 lifecycleScope.launch {
@@ -146,14 +157,14 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
                 }
                 dialog.dismiss()
             }
-            .setNegativeButton("İptal", null)
+            .setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
 
     private suspend fun updateFullList() {
         val allFiles = readFilesFromDisk()
 
-        val comparator = when (currentSortOrder) {
+        val secondaryComparator = when (currentSortOrder) {
             SortOrder.NAME_ASC -> compareBy { it.fileName.lowercase() }
             SortOrder.NAME_DESC -> compareByDescending { it.fileName.lowercase() }
             SortOrder.SIZE_ASC -> compareBy { it.size }
@@ -161,10 +172,9 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             SortOrder.DATE_DESC -> compareByDescending<ArchivedFile> { File(it.filePath).lastModified() }
         }
 
-        val categoryOrderMap = categoryOrder.withIndex().associate { it.value to it.index }
         val sortedFiles = allFiles.sortedWith(
-            compareBy<ArchivedFile> { categoryOrderMap[it.category] ?: categoryOrder.size }
-                .then(comparator)
+            compareBy<ArchivedFile> { categoryOrderResIds.indexOf(it.categoryResId) }
+                .then(secondaryComparator)
         )
 
         val query = (binding.toolbar.menu.findItem(R.id.action_search)?.actionView as? SearchView)?.query?.toString()
@@ -187,8 +197,8 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
                 archiveDir.listFiles()?.filter { it.isFile }?.forEach { file ->
                     val lastModifiedDate = Date(file.lastModified())
                     val formattedDate = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault()).format(lastModifiedDate)
-                    val category = getFileCategory(file.name)
-                    savedFiles.add(ArchivedFile(file.name, file.absolutePath, formattedDate, category, file.length()))
+                    val categoryResId = getFileCategoryResId(file.name)
+                    savedFiles.add(ArchivedFile(file.name, file.absolutePath, formattedDate, categoryResId, file.length()))
                 }
             }
             savedFiles
@@ -197,15 +207,15 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     private fun buildListWithHeaders(files: List<ArchivedFile>): List<ListItem> {
         val listWithHeaders = mutableListOf<ListItem>()
-        if(files.isEmpty()) return listWithHeaders
+        if (files.isEmpty()) return listWithHeaders
 
-        var currentCategory = files.first().category
-        listWithHeaders.add(ListItem.HeaderItem(currentCategory))
+        var currentCategoryResId = files.first().categoryResId
+        listWithHeaders.add(ListItem.HeaderItem(getString(currentCategoryResId)))
 
         files.forEach { file ->
-            if (file.category != currentCategory) {
-                currentCategory = file.category
-                listWithHeaders.add(ListItem.HeaderItem(currentCategory))
+            if (file.categoryResId != currentCategoryResId) {
+                currentCategoryResId = file.categoryResId
+                listWithHeaders.add(ListItem.HeaderItem(getString(currentCategoryResId)))
             }
             listWithHeaders.add(ListItem.FileItem(file))
         }
@@ -247,10 +257,11 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         if (count == 0) {
             actionMode?.finish()
         } else {
-            actionMode?.title = "$count öğe seçildi"
+            actionMode?.title = resources.getQuantityString(R.plurals.items_selected, count, count)
             actionMode?.invalidate()
         }
     }
+
     override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
         mode.menuInflater.inflate(R.menu.contextual_action_menu, menu)
         return true
@@ -265,7 +276,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
         val selectedFiles = fileAdapter.getSelectedFiles(fileAdapter.currentList)
-
         return when (item.itemId) {
             R.id.action_delete -> {
                 showMultiDeleteConfirmationDialog(selectedFiles)
@@ -293,16 +303,17 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     }
 
     private fun showMultiDeleteConfirmationDialog(filesToDelete: List<ArchivedFile>) {
+        val count = filesToDelete.size
         AlertDialog.Builder(this)
-            .setTitle("${filesToDelete.size} Dosyayı Sil")
-            .setMessage("Seçilen dosyaları kalıcı olarak silmek istediğinizden emin misiniz?")
-            .setPositiveButton("Evet, Sil") { _, _ ->
+            .setTitle(resources.getQuantityString(R.plurals.delete_confirmation_title, count, count))
+            .setMessage(getString(R.string.delete_confirmation_message))
+            .setPositiveButton(getString(R.string.yes_delete)) { _, _ ->
                 lifecycleScope.launch {
                     deleteFiles(filesToDelete)
                     actionMode?.finish()
                 }
             }
-            .setNegativeButton("İptal", null)
+            .setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
 
@@ -313,8 +324,10 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     }
 
     private fun shareFiles(files: List<ArchivedFile>) {
-        if (files.isEmpty()) return
-
+        if (files.isEmpty()) {
+            Toast.makeText(this, getString(R.string.files_shared_not_found), Toast.LENGTH_SHORT).show()
+            return
+        }
         val uris = ArrayList<Uri>()
         files.forEach { file ->
             val fileToShare = File(file.filePath)
@@ -323,12 +336,10 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
                 uris.add(FileProvider.getUriForFile(this, authority, fileToShare))
             }
         }
-
         if (uris.isEmpty()) {
-            Toast.makeText(this, "Paylaşılacak dosya bulunamadı.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.files_shared_not_found), Toast.LENGTH_SHORT).show()
             return
         }
-
         val shareIntent = Intent().apply {
             action = if (uris.size == 1) Intent.ACTION_SEND else Intent.ACTION_SEND_MULTIPLE
             type = "*/*"
@@ -339,11 +350,10 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             }
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-
         try {
-            startActivity(Intent.createChooser(shareIntent, "Dosyaları şununla paylaş:"))
+            startActivity(Intent.createChooser(shareIntent, getString(R.string.action_share)))
         } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, "Bu işlemi yapacak bir uygulama bulunamadı.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.error_no_app_for_action), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -365,18 +375,24 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
                 }
             }
         }
-        Toast.makeText(this, "$deletedCount dosya silindi.", Toast.LENGTH_SHORT).show()
+        val message = if (deletedCount == 1) {
+            getString(R.string.file_deleted_toast)
+        } else {
+            getString(R.string.files_deleted_toast, deletedCount)
+        }
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         updateFullList()
     }
 
-    private fun getFileCategory(fileName: String): String {
+    @StringRes
+    private fun getFileCategoryResId(fileName: String): Int {
         return when (fileName.substringAfterLast('.', "").lowercase()) {
-            "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "txt" -> "Ofis Dosyaları"
-            "jpg", "jpeg", "png", "webp", "gif", "bmp" -> "Resim Dosyaları"
-            "mp4", "mkv", "avi", "mov", "3gp", "webm" -> "Video Dosyaları"
-            "mp3", "wav", "m4a", "aac", "flac", "ogg" -> "Ses Dosyaları"
-            "zip", "rar", "7z", "tar", "gz" -> "Arşiv Dosyaları"
-            else -> "Diğer Dosyalar"
+            "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "txt" -> R.string.category_office
+            "jpg", "jpeg", "png", "webp", "gif", "bmp" -> R.string.category_images
+            "mp4", "mkv", "avi", "mov", "3gp", "webm" -> R.string.category_videos
+            "mp3", "wav", "m4a", "aac", "flac", "ogg" -> R.string.category_audio
+            "zip", "rar", "7z", "tar", "gz" -> R.string.category_archives
+            else -> R.string.category_other
         }
     }
 
@@ -394,8 +410,8 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     private fun openFile(file: ArchivedFile) {
         val fileToOpen = File(file.filePath)
-        if(!fileToOpen.exists()) {
-            Toast.makeText(this, "Hata: Dosya bulunamadı.", Toast.LENGTH_SHORT).show()
+        if (!fileToOpen.exists()) {
+            Toast.makeText(this, getString(R.string.error_file_not_found), Toast.LENGTH_SHORT).show()
             return
         }
         val authority = "${applicationContext.packageName}.provider"
@@ -407,7 +423,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         try {
             startActivity(intent)
         } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, "Bu dosya türünü açacak bir uygulama bulunamadı.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.error_no_app_to_open), Toast.LENGTH_SHORT).show()
         }
     }
 }

@@ -5,13 +5,15 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
+import android.util.Log
+import android.util.LruCache
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.core.graphics.createBitmap // KTX fonksiyonu için import eklendi
+import androidx.core.graphics.createBitmap
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -21,11 +23,11 @@ import com.example.ceparsivi.databinding.ItemFileBinding
 import com.example.ceparsivi.databinding.ItemFileGridBinding
 import com.example.ceparsivi.databinding.ItemHeaderBinding
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-private const val VIEW_TYPE_HEADER = 0
 private const val VIEW_TYPE_FILE_LIST = 1
 private const val VIEW_TYPE_FILE_GRID = 2
 
@@ -33,16 +35,37 @@ enum class ViewMode {
     LIST, GRID
 }
 
+object ThumbnailCache {
+    private val maxMemory = (Runtime.getRuntime().maxMemory() / 1024).toInt()
+    private val cacheSize = maxMemory / 8
+    val memoryCache = LruCache<String, Bitmap>(cacheSize)
+}
+
+
 class ArchivedFileAdapter(
     private val onItemClick: (ArchivedFile) -> Unit,
     private val onItemLongClick: (ArchivedFile) -> Boolean
 ) : ListAdapter<ListItem, RecyclerView.ViewHolder>(ListItemDiffCallback()) {
 
+    companion object {
+        const val VIEW_TYPE_HEADER = 0
+    }
+
     var viewMode: ViewMode = ViewMode.LIST
     private val selectedItems = mutableSetOf<String>()
     var isSelectionMode = false
 
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        super.onViewRecycled(holder)
+        if (holder is GridViewHolder) {
+            holder.cancelJob()
+        }
+    }
+
     override fun getItemViewType(position: Int): Int {
+        if (position < 0 || position >= itemCount) {
+            return VIEW_TYPE_FILE_LIST
+        }
         return when (getItem(position)) {
             is ListItem.HeaderItem -> VIEW_TYPE_HEADER
             is ListItem.FileItem -> if (viewMode == ViewMode.LIST) VIEW_TYPE_FILE_LIST else VIEW_TYPE_FILE_GRID
@@ -55,7 +78,7 @@ class ArchivedFileAdapter(
             VIEW_TYPE_HEADER -> HeaderViewHolder(ItemHeaderBinding.inflate(inflater, parent, false))
             VIEW_TYPE_FILE_LIST -> ListViewHolder(ItemFileBinding.inflate(inflater, parent, false))
             VIEW_TYPE_FILE_GRID -> GridViewHolder(ItemFileGridBinding.inflate(inflater, parent, false))
-            else -> throw IllegalArgumentException("Invalid view type")
+            else -> throw IllegalArgumentException("Invalid view type: $viewType")
         }
     }
 
@@ -78,39 +101,53 @@ class ArchivedFileAdapter(
         fun bind(file: ArchivedFile, onClick: (ArchivedFile) -> Unit, onLongClick: (ArchivedFile) -> Boolean, isSelected: Boolean) {
             binding.textViewFileName.text = file.fileName
             binding.textViewFileDate.text = file.dateAdded
-            binding.imageViewFileType.setImageResource(getFileIcon(file))
-            binding.root.setBackgroundColor(if (isSelected) ContextCompat.getColor(itemView.context, android.R.color.darker_gray) else Color.TRANSPARENT)
+            binding.imageViewFileType.setImageResource(getFileIcon(file.categoryResId, file.fileName))
+            binding.root.setBackgroundColor(if (isSelected) ContextCompat.getColor(itemView.context, R.color.purple_200) else Color.TRANSPARENT)
             itemView.setOnClickListener { onClick(file) }
             itemView.setOnLongClickListener { onLongClick(file) }
         }
     }
 
     class GridViewHolder(private val binding: ItemFileGridBinding) : RecyclerView.ViewHolder(binding.root) {
+        private var thumbnailJob: Job? = null
+
+        fun cancelJob() {
+            thumbnailJob?.cancel()
+            thumbnailJob = null
+        }
+
         fun bind(file: ArchivedFile, onClick: (ArchivedFile) -> Unit, onLongClick: (ArchivedFile) -> Boolean, isSelected: Boolean) {
             binding.textViewFileNameGrid.text = file.fileName
-
             val extension = file.fileName.substringAfterLast('.', "").lowercase()
 
-            // Önceki tint'leri temizle ve scaleType'ı ayarla
+            cancelJob()
+
             binding.imageViewFileTypeGrid.imageTintList = null
             binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_CROP
 
-            if (file.category == "Resim Dosyaları" || file.category == "Video Dosyaları") {
-                Glide.with(itemView.context)
-                    .load(File(file.filePath))
-                    .placeholder(R.drawable.ic_file_generic)
-                    .error(getFileIcon(file))
-                    .into(binding.imageViewFileTypeGrid)
-            } else if (extension == "pdf") {
-                // PDF önizlemesi oluştur
-                generatePdfPreview(file)
-            } else {
-                // Diğer dosya türleri için jenerik ikonu ve tint'i ayarla
-                setGenericIcon(file)
+            when (file.categoryResId) {
+                R.string.category_images, R.string.category_videos -> {
+                    Glide.with(itemView.context)
+                        .load(File(file.filePath))
+                        .placeholder(R.drawable.ic_file_generic)
+                        .error(getFileIcon(file.categoryResId, file.fileName))
+                        .into(binding.imageViewFileTypeGrid)
+                }
+                else -> {
+                    if (extension == "pdf") {
+                        val cachedBitmap = ThumbnailCache.memoryCache.get(file.filePath)
+                        if (cachedBitmap != null) {
+                            binding.imageViewFileTypeGrid.setImageBitmap(cachedBitmap)
+                        } else {
+                            thumbnailJob = generatePdfPreview(file)
+                        }
+                    } else {
+                        setGenericIcon(file)
+                    }
+                }
             }
 
-            // Seçim çerçevesi kodu
-            val strokeColorInt = ContextCompat.getColor(itemView.context, R.color.black)
+            val strokeColorInt = ContextCompat.getColor(itemView.context, R.color.purple_500)
             binding.root.strokeWidth = if (isSelected) 8 else 0
             binding.root.strokeColor = if (isSelected) strokeColorInt else Color.TRANSPARENT
 
@@ -123,50 +160,46 @@ class ArchivedFileAdapter(
             itemView.context.theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, typedValue, true)
             binding.imageViewFileTypeGrid.imageTintList = ColorStateList.valueOf(typedValue.data)
             binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_INSIDE
-            binding.imageViewFileTypeGrid.setImageResource(getFileIcon(file))
+            binding.imageViewFileTypeGrid.setImageResource(getFileIcon(file.categoryResId, file.fileName))
         }
 
-        private fun generatePdfPreview(file: ArchivedFile) {
-            // Önizleme yüklenirken geçici olarak PDF ikonunu göster
+        // --- NİHAİ ÇÖZÜM: Fonksiyonun dönüş tipi Job? olarak düzeltildi. ---
+        private fun generatePdfPreview(file: ArchivedFile): Job? { // ? eklendi
             binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_INSIDE
             binding.imageViewFileTypeGrid.setImageResource(R.drawable.ic_file_pdf)
 
-            // Arka planda PDF'i bitmap'e dönüştür
-            (itemView.context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
+            return (itemView.context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
                 try {
                     val fileDescriptor = ParcelFileDescriptor.open(File(file.filePath), ParcelFileDescriptor.MODE_READ_ONLY)
                     val renderer = PdfRenderer(fileDescriptor)
                     val page = renderer.openPage(0)
-
-                    // KTX fonksiyonu kullanılarak bitmap oluşturuldu
                     val bitmap = createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
-
                     page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+
+                    ThumbnailCache.memoryCache.put(file.filePath, bitmap)
 
                     page.close()
                     renderer.close()
                     fileDescriptor.close()
 
-                    // Oluşturulan bitmap'i ana thread'de ImageView'a yükle
                     withContext(Dispatchers.Main) {
-                        binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_CROP
-                        binding.imageViewFileTypeGrid.imageTintList = null // Tint'i temizle
-                        Glide.with(itemView.context)
-                            .load(bitmap)
-                            .placeholder(R.drawable.ic_file_pdf)
-                            .into(binding.imageViewFileTypeGrid)
+                        if (binding.textViewFileNameGrid.text == file.fileName) {
+                            binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_CROP
+                            binding.imageViewFileTypeGrid.imageTintList = null
+                            binding.imageViewFileTypeGrid.setImageBitmap(bitmap)
+                        }
                     }
                 } catch (e: Exception) {
-                    // Hata olursa (örn: şifreli PDF), jenerik ikonu ve tint'i ayarla
+                    Log.e("PdfPreview", "PDF önizlemesi oluşturulamadı: ${file.fileName}", e)
                     withContext(Dispatchers.Main) {
-                        setGenericIcon(file)
+                        if (binding.textViewFileNameGrid.text == file.fileName) {
+                            setGenericIcon(file)
+                        }
                     }
-                    e.printStackTrace()
                 }
             }
         }
     }
-
 
     class HeaderViewHolder(private val binding: ItemHeaderBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(header: ListItem.HeaderItem) {
@@ -175,8 +208,7 @@ class ArchivedFileAdapter(
     }
 
     fun toggleSelection(filePath: String) {
-        val wasSelected = selectedItems.contains(filePath)
-        if (wasSelected) {
+        if (selectedItems.contains(filePath)) {
             selectedItems.remove(filePath)
         } else {
             selectedItems.add(filePath)
@@ -209,21 +241,24 @@ class ArchivedFileAdapter(
     }
 }
 
-private fun getFileIcon(file: ArchivedFile): Int {
-    return when (file.category) {
-        "Ofis Dosyaları" -> when (file.fileName.substringAfterLast('.', "").lowercase()) {
+private fun getFileIcon(categoryResId: Int, fileName: String): Int {
+    if (categoryResId == R.string.category_office) {
+        return when (fileName.substringAfterLast('.', "").lowercase()) {
             "pdf" -> R.drawable.ic_file_pdf
             "doc", "docx" -> R.drawable.ic_file_doc
-            "ppt", "pptx" -> R.drawable.ic_file_doc // PowerPoint için de Word ikonu kullanıldı (değiştirilebilir)
+            "ppt", "pptx" -> R.drawable.ic_file_doc
             else -> R.drawable.ic_file_generic
         }
-        "Resim Dosyaları" -> R.drawable.ic_file_image
-        "Video Dosyaları" -> R.drawable.ic_file_video
-        "Ses Dosyaları" -> R.drawable.ic_file_audio
-        "Arşiv Dosyaları" -> R.drawable.ic_file_archive
+    }
+    return when (categoryResId) {
+        R.string.category_images -> R.drawable.ic_file_image
+        R.string.category_videos -> R.drawable.ic_file_video
+        R.string.category_audio -> R.drawable.ic_file_audio
+        R.string.category_archives -> R.drawable.ic_file_archive
         else -> R.drawable.ic_file_generic
     }
 }
+
 class ListItemDiffCallback : DiffUtil.ItemCallback<ListItem>() {
     override fun areItemsTheSame(oldItem: ListItem, newItem: ListItem): Boolean {
         return when {

@@ -1,13 +1,17 @@
 package com.example.ceparsivi
 
 import android.os.Parcelable
+import androidx.annotation.StringRes
 import kotlinx.parcelize.Parcelize
 
-@Parcelize // Parcelize anotasyonu eklendi
+@Parcelize
 data class ArchivedFile(
     val fileName: String,
     val filePath: String,
     val dateAdded: String,
-    val category: String,
-    val size: Long // Dosya boyutu eklendi
-) : Parcelable // Parcelable arayüzü eklendi
+    // DÜZELTME: Kategori bilgisi artık dile bağlı bir String değil,
+    // dile bağlı olmayan bir kaynak ID'si (Int) olarak tutuluyor.
+    // Bu, sıralamanın her zaman doğru çalışmasını garanti eder.
+    @StringRes val categoryResId: Int,
+    val size: Long
+) : Parcelable

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Smart Archive</string>
+
+    <string name="details_category">Kategori: %1$s</string>
+    <string name="details_date">Tarih: %1$s</string>
+    <string name="details_size">Boyut: %1$s</string>
+    <string name="action_share">Paylaş</string>
+    <string name="action_delete">Sil</string>
+
+    <string name="menu_title_toggle_view">Görünümü Değiştir</string>
+    <string name="menu_title_sort">Sırala</string>
+    <string name="menu_title_search">Ara</string>
+
+    <string name="menu_title_details">Detay</string>
+
+    <string name="empty_view_title">Arşivinizde Henüz Dosya Yok</string>
+    <string name="empty_view_subtitle">Başlamak için başka bir uygulamadan dosya paylaşın.</string>
+    <string name="empty_view_icon_content_description">Boş Arşiv İkonu</string>
+
+    <string name="file_preview_content_description">Dosya önizlemesi</string>
+    <string name="Ayarlar">Ayarlar</string>
+    <string name="dosya_tipi_konu">Dosya Tipi İkonu</string>
+
+    <string name="sort_dialog_title">Sıralama Ölçütü</string>
+    <string name="sort_date_desc">Tarihe Göre (Yeniden Eskiye)</string>
+    <string name="sort_name_asc">İsme Göre (A-Z)</string>
+    <string name="sort_name_desc">İsme Göre (Z-A)</string>
+    <string name="sort_size_asc">Boyuta Göre (Küçükten Büyüğe)</string>
+    <string name="sort_size_desc">Boyuta Göre (Büyükten Küçüğe)</string>
+    <string name="cancel">İptal</string>
+    <string name="yes_delete">Evet, Sil</string>
+    <string name="delete_confirmation_message">Seçilen dosyaları kalıcı olarak silmek istediğinizden emin misiniz?</string>
+    <string name="error_file_not_found">Hata: Dosya bulunamadı.</string>
+    <string name="error_no_app_to_open">Bu dosya türünü açacak bir uygulama bulunamadı.</string>
+    <string name="files_shared_not_found">Paylaşılacak dosya bulunamadı.</string>
+    <string name="error_no_app_for_action">Bu işlemi yapacak bir uygulama bulunamadı.</string>
+    <string name="files_deleted_toast">%1$d dosya silindi.</string>
+    <string name="file_deleted_toast">1 dosya silindi.</string>
+    <string name="give_file_a_name">Dosyaya Bir İsim Ver</string>
+    <string name="save">Kaydet</string>
+    <string name="file_not_received">Dosya alınamadı.</string>
+    <string name="file_saved_as">\'%1$s\' adıyla kaydedildi!</string>
+    <string name="error_file_not_saved">Hata: Dosya kaydedilemedi.</string>
+    <string name="error_invalid_name">Lütfen geçerli bir isim girin.</string>
+    <string name="app_theme">Uygulama Teması</string>
+    <string name="theme_light">Aydınlık</string>
+    <string name="theme_dark">Karanlık</string>
+    <string name="theme_system">Sistem Varsayılanı</string>
+    <string name="file_already_exists">Dosya Zaten Mevcut</string>
+    <string name="overwrite_confirmation">\'%1$s\' isminde bir dosya zaten mevcut. Üzerine yazılsın mı?</string>
+    <string name="replace">Değiştir</string>
+    <string name="category_office">Ofis Dosyaları</string>
+    <string name="category_images">Resim Dosyaları</string>
+    <string name="category_videos">Video Dosyaları</string>
+    <string name="category_audio">Ses Dosyaları</string>
+    <string name="category_archives">Arşiv Dosyaları</string>
+    <string name="category_other">Diğer Dosyalar</string>
+</resources>

@@ -17,7 +17,6 @@ class FileDetailsBottomSheet : BottomSheetDialogFragment() {
     private val binding get() = _binding!!
     private var archivedFile: ArchivedFile? = null
 
-    // MainActivity'nin dinleyeceği arayüz
     interface FileDetailsListener {
         fun onShareClicked(file: ArchivedFile)
         fun onDeleteClicked(file: ArchivedFile)
@@ -28,7 +27,6 @@ class FileDetailsBottomSheet : BottomSheetDialogFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
-            // DÜZELTME: "getParcelable" için eski ve yeni versiyon uyumluluğu sağlandı
             archivedFile = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 it.getParcelable("file", ArchivedFile::class.java)
             } else {
@@ -52,8 +50,8 @@ class FileDetailsBottomSheet : BottomSheetDialogFragment() {
         archivedFile?.let { file ->
             binding.textViewFileNameDetails.text = file.fileName
 
-            // DÜZELTME: Metinler artık strings.xml'den okunuyor
-            binding.textViewCategory.text = getString(R.string.details_category, file.category)
+            // DÜZELTME: Kategori metni artık kaynak ID'den okunuyor.
+            binding.textViewCategory.text = getString(R.string.details_category, getString(file.categoryResId))
             binding.textViewDate.text = getString(R.string.details_date, file.dateAdded)
             binding.textViewSize.text = getString(R.string.details_size, formatBytes(file.size))
 
@@ -79,7 +77,6 @@ class FileDetailsBottomSheet : BottomSheetDialogFragment() {
             a /= 1000
             ci.next()
         }
-        // DÜZELTME: Locale (yerel ayar) bilgisi eklendi
         return String.format(Locale.getDefault(), "%.1f %cB", a / 1000.0, ci.current())
     }
 
