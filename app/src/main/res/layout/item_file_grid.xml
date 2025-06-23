@@ -19,16 +19,17 @@
             android:scaleType="centerCrop"
             android:background="#E0E0E0"
             tools:src="@drawable/ic_file_image"
-            app:tint="?attr/colorOnSurfaceVariant"
-            android:contentDescription="@string/file_preview_content_description" /> <TextView
-        android:id="@+id/textViewFileNameGrid"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="8dp"
-        android:maxLines="2"
-        android:ellipsize="end"
-        android:textAppearance="?attr/textAppearanceBody2"
-        tools:text="Dosya Adı Burada Görünecek.pdf" />
+            android:contentDescription="@string/file_preview_content_description" />
+
+        <TextView
+            android:id="@+id/textViewFileNameGrid"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textAppearance="?attr/textAppearanceBody2"
+            tools:text="Dosya Adı Burada Görünecek.pdf" />
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

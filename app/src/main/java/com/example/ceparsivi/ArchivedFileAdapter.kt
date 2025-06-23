@@ -1,10 +1,18 @@
 package com.example.ceparsivi
 
+import android.content.res.ColorStateList
+import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.pdf.PdfRenderer
+import android.os.ParcelFileDescriptor
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.ImageView
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.createBitmap // KTX fonksiyonu için import eklendi
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -12,6 +20,9 @@ import com.bumptech.glide.Glide
 import com.example.ceparsivi.databinding.ItemFileBinding
 import com.example.ceparsivi.databinding.ItemFileGridBinding
 import com.example.ceparsivi.databinding.ItemHeaderBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 private const val VIEW_TYPE_HEADER = 0
@@ -78,19 +89,27 @@ class ArchivedFileAdapter(
         fun bind(file: ArchivedFile, onClick: (ArchivedFile) -> Unit, onLongClick: (ArchivedFile) -> Boolean, isSelected: Boolean) {
             binding.textViewFileNameGrid.text = file.fileName
 
+            val extension = file.fileName.substringAfterLast('.', "").lowercase()
+
+            // Önceki tint'leri temizle ve scaleType'ı ayarla
+            binding.imageViewFileTypeGrid.imageTintList = null
+            binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_CROP
+
             if (file.category == "Resim Dosyaları" || file.category == "Video Dosyaları") {
                 Glide.with(itemView.context)
                     .load(File(file.filePath))
                     .placeholder(R.drawable.ic_file_generic)
                     .error(getFileIcon(file))
-                    .centerCrop()
                     .into(binding.imageViewFileTypeGrid)
+            } else if (extension == "pdf") {
+                // PDF önizlemesi oluştur
+                generatePdfPreview(file)
             } else {
-                binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_INSIDE
-                binding.imageViewFileTypeGrid.setImageResource(getFileIcon(file))
+                // Diğer dosya türleri için jenerik ikonu ve tint'i ayarla
+                setGenericIcon(file)
             }
 
-            // --- HATA DÜZELTİLDİ ---
+            // Seçim çerçevesi kodu
             val strokeColorInt = ContextCompat.getColor(itemView.context, R.color.black)
             binding.root.strokeWidth = if (isSelected) 8 else 0
             binding.root.strokeColor = if (isSelected) strokeColorInt else Color.TRANSPARENT
@@ -98,7 +117,56 @@ class ArchivedFileAdapter(
             itemView.setOnClickListener { onClick(file) }
             itemView.setOnLongClickListener { onLongClick(file) }
         }
+
+        private fun setGenericIcon(file: ArchivedFile) {
+            val typedValue = TypedValue()
+            itemView.context.theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, typedValue, true)
+            binding.imageViewFileTypeGrid.imageTintList = ColorStateList.valueOf(typedValue.data)
+            binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_INSIDE
+            binding.imageViewFileTypeGrid.setImageResource(getFileIcon(file))
+        }
+
+        private fun generatePdfPreview(file: ArchivedFile) {
+            // Önizleme yüklenirken geçici olarak PDF ikonunu göster
+            binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_INSIDE
+            binding.imageViewFileTypeGrid.setImageResource(R.drawable.ic_file_pdf)
+
+            // Arka planda PDF'i bitmap'e dönüştür
+            (itemView.context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
+                try {
+                    val fileDescriptor = ParcelFileDescriptor.open(File(file.filePath), ParcelFileDescriptor.MODE_READ_ONLY)
+                    val renderer = PdfRenderer(fileDescriptor)
+                    val page = renderer.openPage(0)
+
+                    // KTX fonksiyonu kullanılarak bitmap oluşturuldu
+                    val bitmap = createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
+
+                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+
+                    page.close()
+                    renderer.close()
+                    fileDescriptor.close()
+
+                    // Oluşturulan bitmap'i ana thread'de ImageView'a yükle
+                    withContext(Dispatchers.Main) {
+                        binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_CROP
+                        binding.imageViewFileTypeGrid.imageTintList = null // Tint'i temizle
+                        Glide.with(itemView.context)
+                            .load(bitmap)
+                            .placeholder(R.drawable.ic_file_pdf)
+                            .into(binding.imageViewFileTypeGrid)
+                    }
+                } catch (e: Exception) {
+                    // Hata olursa (örn: şifreli PDF), jenerik ikonu ve tint'i ayarla
+                    withContext(Dispatchers.Main) {
+                        setGenericIcon(file)
+                    }
+                    e.printStackTrace()
+                }
+            }
+        }
     }
+
 
     class HeaderViewHolder(private val binding: ItemHeaderBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(header: ListItem.HeaderItem) {
@@ -146,6 +214,7 @@ private fun getFileIcon(file: ArchivedFile): Int {
         "Ofis Dosyaları" -> when (file.fileName.substringAfterLast('.', "").lowercase()) {
             "pdf" -> R.drawable.ic_file_pdf
             "doc", "docx" -> R.drawable.ic_file_doc
+            "ppt", "pptx" -> R.drawable.ic_file_doc // PowerPoint için de Word ikonu kullanıldı (değiştirilebilir)
             else -> R.drawable.ic_file_generic
         }
         "Resim Dosyaları" -> R.drawable.ic_file_image
@@ -155,7 +224,6 @@ private fun getFileIcon(file: ArchivedFile): Int {
         else -> R.drawable.ic_file_generic
     }
 }
-
 class ListItemDiffCallback : DiffUtil.ItemCallback<ListItem>() {
     override fun areItemsTheSame(oldItem: ListItem, newItem: ListItem): Boolean {
         return when {
