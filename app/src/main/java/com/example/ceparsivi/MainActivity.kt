@@ -15,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.FileProvider
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -53,6 +54,9 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // DÜZELTME: Açılış ekranını kur. Bu satır super.onCreate'den ve setContentView'den ÖNCE olmalı.
+        installSplashScreen()
+
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -117,18 +121,13 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             val gridLayoutManager = GridLayoutManager(this, 3)
             gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                 override fun getSpanSize(position: Int): Int {
-                    // DÜZELTME: Olası bir "yarış koşulu" (race condition) kaynaklı çökmeyi
-                    // engellemek için try-catch bloğu eklendi. Bu, uygulamanın daha stabil
-                    // çalışmasını sağlar.
                     return try {
                         if (fileAdapter.getItemViewType(position) == ArchivedFileAdapter.VIEW_TYPE_HEADER) {
-                            3 // Başlıklar için 3 sütunluk yer kapla
+                            3
                         } else {
-                            1 // Dosyalar için 1 sütunluk yer kapla
+                            1
                         }
                     } catch (e: Exception) {
-                        // Bir hata durumunda (örn: liste güncellenirken pozisyon geçersiz kalırsa)
-                        // güvenli bir varsayılan değer döndür.
                         1
                     }
                 }

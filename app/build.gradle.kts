@@ -51,6 +51,7 @@ dependencies {
 
     // Splash Screen
     implementation(libs.androidx.splashscreen)
+    implementation("androidx.core:core-splashscreen:1.0.1")
 
     // Glide
     implementation(libs.glide)
