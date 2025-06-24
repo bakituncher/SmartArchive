@@ -3,6 +3,7 @@ package com.codenzi.ceparsivi
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.Rect
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import android.util.Log
@@ -40,7 +41,6 @@ object ThumbnailCache {
     private val cacheSize = maxMemory / 8
     val memoryCache = LruCache<String, Bitmap>(cacheSize)
 }
-
 
 class ArchivedFileAdapter(
     private val onItemClick: (ArchivedFile) -> Unit,
@@ -163,8 +163,7 @@ class ArchivedFileAdapter(
             binding.imageViewFileTypeGrid.setImageResource(getFileIcon(file.categoryResId, file.fileName))
         }
 
-
-        private fun generatePdfPreview(file: ArchivedFile): Job? { // ? eklendi
+        private fun generatePdfPreview(file: ArchivedFile): Job? {
             binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_INSIDE
             binding.imageViewFileTypeGrid.setImageResource(R.drawable.ic_file_pdf)
 
@@ -173,8 +172,21 @@ class ArchivedFileAdapter(
                     val fileDescriptor = ParcelFileDescriptor.open(File(file.filePath), ParcelFileDescriptor.MODE_READ_ONLY)
                     val renderer = PdfRenderer(fileDescriptor)
                     val page = renderer.openPage(0)
-                    val bitmap = createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
-                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+
+                    val displayMetrics = itemView.context.resources.displayMetrics
+                    val targetWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 100f, displayMetrics).toInt()
+                    val scale = targetWidth.toFloat() / page.width
+                    val targetHeight = (page.height * scale).toInt()
+
+                    if (targetWidth <= 0 || targetHeight <= 0) {
+                        throw IllegalStateException("Invalid thumbnail dimensions")
+                    }
+
+                    val bitmap = createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
+                    bitmap.eraseColor(Color.WHITE)
+
+                    val renderRect = Rect(0, 0, targetWidth, targetHeight)
+                    page.render(bitmap, renderRect, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
 
                     ThumbnailCache.memoryCache.put(file.filePath, bitmap)
 
@@ -183,7 +195,7 @@ class ArchivedFileAdapter(
                     fileDescriptor.close()
 
                     withContext(Dispatchers.Main) {
-                        if (binding.textViewFileNameGrid.text == file.fileName) {
+                        if (bindingAdapterPosition != RecyclerView.NO_POSITION) {
                             binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_CROP
                             binding.imageViewFileTypeGrid.imageTintList = null
                             binding.imageViewFileTypeGrid.setImageBitmap(bitmap)
@@ -192,7 +204,7 @@ class ArchivedFileAdapter(
                 } catch (e: Exception) {
                     Log.e("PdfPreview", "PDF önizlemesi oluşturulamadı: ${file.fileName}", e)
                     withContext(Dispatchers.Main) {
-                        if (binding.textViewFileNameGrid.text == file.fileName) {
+                        if (bindingAdapterPosition != RecyclerView.NO_POSITION) {
                             setGenericIcon(file)
                         }
                     }

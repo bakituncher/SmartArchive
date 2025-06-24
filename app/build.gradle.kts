@@ -22,7 +22,7 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -51,7 +51,7 @@ dependencies {
 
     // Splash Screen
     implementation(libs.androidx.splashscreen)
-    implementation("androidx.core:core-splashscreen:1.0.1")
+
 
     // Glide
     implementation(libs.glide)

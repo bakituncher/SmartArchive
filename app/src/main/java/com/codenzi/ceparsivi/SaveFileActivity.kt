@@ -78,7 +78,6 @@ class SaveFileActivity : AppCompatActivity() {
             layout.addView(textViewExtension)
         }
 
-
         val dialog = AlertDialog.Builder(this)
             .setTitle(getString(R.string.give_file_a_name))
             .setView(layout)
@@ -103,13 +102,10 @@ class SaveFileActivity : AppCompatActivity() {
                         newBaseName
                     }
 
-
                     val outputFile = File(filesDir, "arsiv/$newName")
                     if (outputFile.exists()) {
-
                         showOverwriteConfirmationDialog(fileUri, newName, dialog)
                     } else {
-
                         dialog.dismiss()
                         saveFileAndFinish(fileUri, newName)
                     }
@@ -201,6 +197,7 @@ class SaveFileActivity : AppCompatActivity() {
                 }
             }
         }
-        return result ?: "isimsiz_dosya"
+
+        return result?.takeIf { it.isNotBlank() } ?: "isimsiz_dosya_${System.currentTimeMillis()}"
     }
 }
