@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Smart Archive</string>
+    <string name="app_name">Akıllı Arşiv</string>
 
     <string name="details_category">Kategori: %1$s</string>
     <string name="details_date">Tarih: %1$s</string>
