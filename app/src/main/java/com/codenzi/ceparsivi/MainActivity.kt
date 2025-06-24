@@ -1,4 +1,4 @@
-package com.example.ceparsivi
+package com.codenzi.ceparsivi
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -19,7 +19,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.ceparsivi.databinding.ActivityMainBinding
+import com.codenzi.ceparsivi.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

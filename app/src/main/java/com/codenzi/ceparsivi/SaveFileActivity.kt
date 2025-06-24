@@ -1,4 +1,4 @@
-package com.example.ceparsivi
+package com.codenzi.ceparsivi
 
 import android.content.Intent
 import android.net.Uri

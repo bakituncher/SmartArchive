@@ -1,4 +1,4 @@
-package com.example.ceparsivi
+package com.codenzi.ceparsivi
 
 sealed class ListItem {
     data class HeaderItem(val title: String) : ListItem()

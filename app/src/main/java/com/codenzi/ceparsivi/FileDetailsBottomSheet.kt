@@ -1,11 +1,11 @@
-package com.example.ceparsivi
+package com.codenzi.ceparsivi
 
 import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import com.example.ceparsivi.databinding.BottomSheetFileDetailsBinding
+import com.codenzi.ceparsivi.databinding.BottomSheetFileDetailsBinding
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import java.text.CharacterIterator
 import java.text.StringCharacterIterator

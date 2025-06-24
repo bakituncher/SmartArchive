@@ -1,4 +1,4 @@
-package com.example.ceparsivi
+package com.codenzi.ceparsivi
 
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
@@ -19,9 +19,9 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.example.ceparsivi.databinding.ItemFileBinding
-import com.example.ceparsivi.databinding.ItemFileGridBinding
-import com.example.ceparsivi.databinding.ItemHeaderBinding
+import com.codenzi.ceparsivi.databinding.ItemFileBinding
+import com.codenzi.ceparsivi.databinding.ItemFileGridBinding
+import com.codenzi.ceparsivi.databinding.ItemHeaderBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch

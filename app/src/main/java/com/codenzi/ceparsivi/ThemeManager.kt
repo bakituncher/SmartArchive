@@ -1,4 +1,4 @@
-package com.example.ceparsivi
+package com.codenzi.ceparsivi
 
 import android.content.Context
 import android.content.SharedPreferences

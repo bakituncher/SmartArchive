@@ -6,12 +6,12 @@ plugins {
 }
 
 android {
-    namespace = "com.example.ceparsivi"
+    namespace = "com.codenzi.ceparsivi"
     // Kararlı SDK 34'te kalıyoruz. Bu en doğru seçim.
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.ceparsivi"
+        applicationId = "com.codenzi.ceparsivi"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

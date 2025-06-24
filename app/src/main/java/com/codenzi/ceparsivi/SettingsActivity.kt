@@ -1,9 +1,9 @@
-package com.example.ceparsivi
+package com.codenzi.ceparsivi
 
 import android.os.Bundle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import com.example.ceparsivi.databinding.ActivitySettingsBinding
+import com.codenzi.ceparsivi.databinding.ActivitySettingsBinding
 
 class SettingsActivity : AppCompatActivity() {
 
