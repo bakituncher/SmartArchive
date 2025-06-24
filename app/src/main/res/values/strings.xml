@@ -60,5 +60,8 @@
     <string name="action_settings">Settings</string>
     <string name="onboarding_image_description">Application usage guide</string>
     <string name="action_close">Close</string>
+    <string name="duplicate_file_found">Duplicate File Found</string>
+    <string name="duplicate_file_message">This file is already archived as \'%1$s\'.\n\nSaving it again will create a copy named \'%2$s\'. Do you want to continue?</string>
+    <string name="action_save_copy">Save Copy</string>
 
 </resources>

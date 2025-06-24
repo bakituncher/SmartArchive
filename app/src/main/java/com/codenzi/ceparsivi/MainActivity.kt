@@ -397,6 +397,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         var deletedCount = 0
         withContext(Dispatchers.IO) {
             files.forEach {
+                FileHashManager.removeHashForFile(applicationContext, it.fileName)
                 val fileToDelete = File(it.filePath)
                 if (fileToDelete.exists() && fileToDelete.delete()) {
                     deletedCount++
