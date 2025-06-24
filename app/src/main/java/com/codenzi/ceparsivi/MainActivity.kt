@@ -97,6 +97,18 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         val isFirstLaunch = prefs.getBoolean("isFirstLaunch", true)
 
         if (isFirstLaunch) {
+            // Cihaz dilini kontrol et
+            val currentLanguage = Locale.getDefault().language
+
+            // Dile göre doğru görseli ata
+            val imageResource = if (currentLanguage == "tr") {
+                R.drawable.learn // Türkçe için
+            } else {
+                R.drawable.learn_en // İngilizce ve diğer diller için
+            }
+            binding.onboardingImageView.setImageResource(imageResource)
+
+            // Tanıtım ekranını görünür yap
             binding.onboardingOverlay.isVisible = true
         }
 

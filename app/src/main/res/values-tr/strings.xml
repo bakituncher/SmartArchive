@@ -62,4 +62,6 @@
     <string name="duplicate_file_found">Aynı Dosya Bulundu</string>
     <string name="duplicate_file_message">Bu dosya zaten \'%1$s\' adıyla arşivlenmiş.\n\nYeniden kaydetmek, \'%2$s\' adında bir kopya oluşturacaktır. Devam etmek istiyor musunuz?</string>
     <string name="action_save_copy">Kopyayı Kaydet</string>
+    <string name="action_privacy_policy">Gizlilik Politikası</string>
+    <string name="privacy_policy_url" translatable="false">https://www.codenzi.com/privacy-akilli-arsiv.html</string>
 </resources>

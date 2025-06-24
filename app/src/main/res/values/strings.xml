@@ -63,5 +63,7 @@
     <string name="duplicate_file_found">Duplicate File Found</string>
     <string name="duplicate_file_message">This file is already archived as \'%1$s\'.\n\nSaving it again will create a copy named \'%2$s\'. Do you want to continue?</string>
     <string name="action_save_copy">Save Copy</string>
+    <string name="action_privacy_policy">Privacy Policy</string>
+    <string name="privacy_policy_url" translatable="false">https://www.codenzi.com/privacy-smart-archive.html</string>
 
 </resources>
