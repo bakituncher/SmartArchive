@@ -16,7 +16,7 @@
         android:theme="@style/Theme.CepArsivi"
         tools:targetApi="34">
 
-        <!-- DÜZELTME: MainActivity'nin teması, açılış ekranı teması olarak ayarlandı. -->
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

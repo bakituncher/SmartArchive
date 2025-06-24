@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.codenzi.ceparsivi"
-    // Kararlı SDK 34'te kalıyoruz. Bu en doğru seçim.
+
     compileSdk = 34
 
     defaultConfig {
@@ -22,7 +22,7 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false // Şimdilik Proguard'ı kapatalım, olası hataları engeller.
+            isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

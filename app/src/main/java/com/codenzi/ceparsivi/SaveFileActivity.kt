@@ -78,11 +78,11 @@ class SaveFileActivity : AppCompatActivity() {
             layout.addView(textViewExtension)
         }
 
-        // AlertDialog'u bir değişkende tutarak manuel kapatma kontrolü sağlıyoruz
+
         val dialog = AlertDialog.Builder(this)
             .setTitle(getString(R.string.give_file_a_name))
             .setView(layout)
-            .setPositiveButton(getString(R.string.save), null) // Listener'ı null yapıyoruz
+            .setPositiveButton(getString(R.string.save), null)
             .setNegativeButton(getString(R.string.cancel)) { d, _ ->
                 d.cancel()
                 finish()
@@ -103,13 +103,13 @@ class SaveFileActivity : AppCompatActivity() {
                         newBaseName
                     }
 
-                    // --- DÜZELTME: Kaydetmeden önce dosya var mı diye kontrol et ---
+
                     val outputFile = File(filesDir, "arsiv/$newName")
                     if (outputFile.exists()) {
-                        // Dosya varsa, kullanıcıya sor. Diyalog kapanmasın.
+
                         showOverwriteConfirmationDialog(fileUri, newName, dialog)
                     } else {
-                        // Dosya yoksa, direkt kaydet ve tüm diyalogları/aktiviteyi kapat.
+
                         dialog.dismiss()
                         saveFileAndFinish(fileUri, newName)
                     }
@@ -121,20 +121,20 @@ class SaveFileActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    // YENİ FONKSİYON: Kullanıcıya üzerine yazma onayı soran diyalog.
+
     private fun showOverwriteConfirmationDialog(uri: Uri, name: String, parentDialog: AlertDialog) {
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.file_already_exists))
             .setMessage(getString(R.string.overwrite_confirmation, name))
             .setPositiveButton(getString(R.string.replace)) { _, _ ->
-                parentDialog.dismiss() // Ana diyalogu da kapat
+                parentDialog.dismiss()
                 saveFileAndFinish(uri, name)
             }
-            .setNegativeButton(getString(R.string.cancel), null) // Sadece bu küçük diyalogu kapatır
+            .setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
 
-    // YENİ FONKSİYON: Kod tekrarını önlemek için kaydetme ve bitirme işlemleri.
+
     private fun saveFileAndFinish(uri: Uri, newName: String) {
         lifecycleScope.launch {
             val success = copyFileToInternalStorage(uri, newName)
@@ -151,7 +151,7 @@ class SaveFileActivity : AppCompatActivity() {
         }
     }
 
-    // Arka planda çalışması için suspend olarak işaretlendi
+
     private suspend fun copyFileToInternalStorage(uri: Uri, newName: String): Boolean {
         return withContext(Dispatchers.IO) {
             try {

@@ -54,9 +54,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // DÜZELTME: Açılış ekranını kur. Bu satır super.onCreate'den ve setContentView'den ÖNCE olmalı.
         installSplashScreen()
-
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -118,6 +116,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         if (currentViewMode == ViewMode.LIST) {
             binding.recyclerViewFiles.layoutManager = LinearLayoutManager(this)
         } else {
+
             val gridLayoutManager = GridLayoutManager(this, 3)
             gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                 override fun getSpanSize(position: Int): Int {
@@ -127,7 +126,8 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
                         } else {
                             1
                         }
-                    } catch (e: Exception) {
+
+                    } catch (_: Exception) {
                         1
                     }
                 }
@@ -263,6 +263,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
         mode.menuInflater.inflate(R.menu.contextual_action_menu, menu)
+        binding.appBarLayout.visibility = View.GONE
         return true
     }
 
@@ -299,6 +300,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     override fun onDestroyActionMode(mode: ActionMode) {
         fileAdapter.clearSelections()
         actionMode = null
+        binding.appBarLayout.visibility = View.VISIBLE
     }
 
     private fun showMultiDeleteConfirmationDialog(filesToDelete: List<ArchivedFile>) {

@@ -163,7 +163,7 @@ class ArchivedFileAdapter(
             binding.imageViewFileTypeGrid.setImageResource(getFileIcon(file.categoryResId, file.fileName))
         }
 
-        // --- NİHAİ ÇÖZÜM: Fonksiyonun dönüş tipi Job? olarak düzeltildi. ---
+
         private fun generatePdfPreview(file: ArchivedFile): Job? { // ? eklendi
             binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_INSIDE
             binding.imageViewFileTypeGrid.setImageResource(R.drawable.ic_file_pdf)
