@@ -106,7 +106,7 @@ class SaveFileActivity : AppCompatActivity() {
             positiveButton.setOnClickListener {
                 val newBaseName = editTextFileName.text.toString().trim()
                 if (newBaseName.isNotBlank()) {
-                    // DÜZELTME: newName kendisine değil, newBaseName'e atanmalıydı.
+
                     val newName = if (fileExtension.isNotEmpty()) "$newBaseName.$fileExtension" else newBaseName
                     handleSaveRequest(fileUri, newName, dialog)
                 } else {

@@ -50,7 +50,7 @@ class FileDetailsBottomSheet : BottomSheetDialogFragment() {
         archivedFile?.let { file ->
             binding.textViewFileNameDetails.text = file.fileName
 
-            // DÜZELTME: Kategori metni artık kaynak ID'den okunuyor.
+
             binding.textViewCategory.text = getString(R.string.details_category, getString(file.categoryResId))
             binding.textViewDate.text = getString(R.string.details_date, file.dateAdded)
             binding.textViewSize.text = getString(R.string.details_size, formatBytes(file.size))

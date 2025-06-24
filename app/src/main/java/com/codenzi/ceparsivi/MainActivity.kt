@@ -118,15 +118,15 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     override fun onResume() {
         super.onResume()
 
-        // *** NİHAİ DÜZELTME BURADA ***
-        // Ayarlar'dan dönüldüğünde tema tercihinin değişip değişmediğini kontrol et.
+
+
         val newTheme = ThemeManager.getTheme(this)
         if (activeTheme != null && activeTheme != newTheme) {
-            // 1. Yeni temayı tüm uygulamaya uygula.
+
             ThemeManager.applyTheme(newTheme)
-            // 2. Değişikliğin bu ekranda görünür olması için aktiviteyi yeniden başlat.
+
             recreate()
-            // 3. recreate() sonrası kodun devam etmesini engellemek için return et.
+
             return
         }
 
