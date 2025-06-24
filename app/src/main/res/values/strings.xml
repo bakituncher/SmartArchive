@@ -57,4 +57,8 @@
     <string name="category_audio">Audio Files</string>
     <string name="category_archives">Archive Files</string>
     <string name="category_other">Other Files</string>
+    <string name="action_settings">Settings</string>
+    <string name="onboarding_image_description">Application usage guide</string>
+    <string name="action_close">Close</string>
+
 </resources>

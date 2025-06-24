@@ -56,4 +56,7 @@
     <string name="category_audio">Ses Dosyaları</string>
     <string name="category_archives">Arşiv Dosyaları</string>
     <string name="category_other">Diğer Dosyalar</string>
+    <string name="action_settings">Ayarlar</string>
+    <string name="onboarding_image_description">Uygulama kullanım rehberi</string>
+    <string name="action_close">Kapat</string>
 </resources>

@@ -1,6 +1,7 @@
 package com.codenzi.ceparsivi
 
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -15,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.FileProvider
+import androidx.core.content.edit
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -58,11 +60,37 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        checkFirstLaunch()
+
         setSupportActionBar(binding.toolbar)
         setupRecyclerView()
 
         binding.buttonSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
+        }
+    }
+
+    private fun checkFirstLaunch() {
+        val prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+        val isFirstLaunch = prefs.getBoolean("isFirstLaunch", true)
+
+        if (isFirstLaunch) {
+            binding.onboardingOverlay.visibility = View.VISIBLE
+        }
+
+        binding.closeOnboardingButton.setOnClickListener {
+            binding.onboardingOverlay.animate()
+                .alpha(0f)
+                .withEndAction {
+                    binding.onboardingOverlay.visibility = View.GONE
+                }
+                .setDuration(300)
+                .start()
+
+            prefs.edit {
+                putBoolean("isFirstLaunch", false)
+            }
         }
     }
 
@@ -333,7 +361,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         files.forEach { file ->
             val fileToShare = File(file.filePath)
             if (fileToShare.exists()) {
-                val authority = "${applicationContext.packageName}.provider"
+                val authority = "$packageName.provider"
                 uris.add(FileProvider.getUriForFile(this, authority, fileToShare))
             }
         }
@@ -415,7 +443,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             Toast.makeText(this, getString(R.string.error_file_not_found), Toast.LENGTH_SHORT).show()
             return
         }
-        val authority = "${applicationContext.packageName}.provider"
+        val authority = "$packageName.provider"
         val fileUri = FileProvider.getUriForFile(this, authority, fileToOpen)
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(fileUri, MimeTypeMap.getSingleton().getMimeTypeFromExtension(fileToOpen.extension) ?: "*/*")
