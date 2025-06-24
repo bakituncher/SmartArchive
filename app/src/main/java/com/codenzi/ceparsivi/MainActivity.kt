@@ -1,13 +1,11 @@
 package com.codenzi.ceparsivi
 
 import android.content.ActivityNotFoundException
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
-import android.view.View
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.annotation.StringRes
@@ -18,6 +16,7 @@ import androidx.appcompat.widget.SearchView
 import androidx.core.content.FileProvider
 import androidx.core.content.edit
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -72,18 +71,18 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     }
 
     private fun checkFirstLaunch() {
-        val prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
         val isFirstLaunch = prefs.getBoolean("isFirstLaunch", true)
 
         if (isFirstLaunch) {
-            binding.onboardingOverlay.visibility = View.VISIBLE
+            binding.onboardingOverlay.isVisible = true
         }
 
         binding.closeOnboardingButton.setOnClickListener {
             binding.onboardingOverlay.animate()
                 .alpha(0f)
                 .withEndAction {
-                    binding.onboardingOverlay.visibility = View.GONE
+                    binding.onboardingOverlay.isVisible = false
                 }
                 .setDuration(300)
                 .start()
@@ -291,7 +290,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
         mode.menuInflater.inflate(R.menu.contextual_action_menu, menu)
-        binding.appBarLayout.visibility = View.GONE
+        binding.appBarLayout.isVisible = false
         return true
     }
 
@@ -328,7 +327,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     override fun onDestroyActionMode(mode: ActionMode) {
         fileAdapter.clearSelections()
         actionMode = null
-        binding.appBarLayout.visibility = View.VISIBLE
+        binding.appBarLayout.isVisible = true
     }
 
     private fun showMultiDeleteConfirmationDialog(filesToDelete: List<ArchivedFile>) {
@@ -428,13 +427,8 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     override fun onQueryTextSubmit(query: String?): Boolean = false
 
     private fun updateUI(isEmpty: Boolean) {
-        if (isEmpty) {
-            binding.recyclerViewFiles.visibility = View.GONE
-            binding.layoutEmpty.visibility = View.VISIBLE
-        } else {
-            binding.recyclerViewFiles.visibility = View.VISIBLE
-            binding.layoutEmpty.visibility = View.GONE
-        }
+        binding.recyclerViewFiles.isVisible = !isEmpty
+        binding.layoutEmpty.isVisible = isEmpty
     }
 
     private fun openFile(file: ArchivedFile) {
