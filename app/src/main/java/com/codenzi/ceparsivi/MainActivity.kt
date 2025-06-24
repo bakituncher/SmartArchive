@@ -37,6 +37,9 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     private var currentSortOrder = SortOrder.DATE_DESC
     private var currentViewMode = ViewMode.LIST
 
+    private val keyViewMode = "key_view_mode"
+    private var activeTheme: String? = null
+
     private enum class SortOrder {
         DATE_DESC,
         NAME_ASC,
@@ -54,11 +57,30 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         R.string.category_other
     )
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(keyViewMode, currentViewMode.name)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        activeTheme = ThemeManager.getTheme(this)
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        if (savedInstanceState != null) {
+            val savedViewModeName = savedInstanceState.getString(keyViewMode)
+            if (savedViewModeName != null) {
+                currentViewMode = try {
+                    ViewMode.valueOf(savedViewModeName)
+                } catch (_: IllegalArgumentException) {
+                    ViewMode.LIST
+                }
+            }
+        }
 
         checkFirstLaunch()
 
@@ -95,6 +117,19 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     override fun onResume() {
         super.onResume()
+
+        // *** NİHAİ DÜZELTME BURADA ***
+        // Ayarlar'dan dönüldüğünde tema tercihinin değişip değişmediğini kontrol et.
+        val newTheme = ThemeManager.getTheme(this)
+        if (activeTheme != null && activeTheme != newTheme) {
+            // 1. Yeni temayı tüm uygulamaya uygula.
+            ThemeManager.applyTheme(newTheme)
+            // 2. Değişikliğin bu ekranda görünür olması için aktiviteyi yeniden başlat.
+            recreate()
+            // 3. recreate() sonrası kodun devam etmesini engellemek için return et.
+            return
+        }
+
         lifecycleScope.launch {
             updateFullList()
         }
@@ -273,7 +308,9 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
                 true
             }
         )
-        binding.recyclerViewFiles.adapter = fileAdapter
+
+        fileAdapter.viewMode = currentViewMode
+
         setupLayoutManager()
     }
 

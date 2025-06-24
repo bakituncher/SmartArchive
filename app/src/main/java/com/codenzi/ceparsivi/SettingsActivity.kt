@@ -31,6 +31,7 @@ class SettingsActivity : AppCompatActivity() {
             .setTitle(getString(R.string.app_theme))
             .setSingleChoiceItems(themes, checkedItem) { dialog, which ->
                 val selectedTheme = themeModes[which]
+
                 ThemeManager.setTheme(this, selectedTheme)
                 dialog.dismiss()
                 finish()

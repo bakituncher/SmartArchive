@@ -33,8 +33,9 @@ object ThemeManager {
         return getPreferences(context).getString(KEY_THEME, ThemeMode.SYSTEM.value) ?: ThemeMode.SYSTEM.value
     }
 
+    // DÜZELTME: Bu fonksiyon artık temayı anında uygulamayacak, sadece kaydedecek.
     fun setTheme(context: Context, theme: ThemeMode) {
         getPreferences(context).edit { putString(KEY_THEME, theme.value) }
-        applyTheme(theme.value)
+        // applyTheme(theme.value) // <--- BU SATIR KALDIRILDI
     }
 }
