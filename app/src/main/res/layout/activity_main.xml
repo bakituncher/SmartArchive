@@ -70,17 +70,17 @@
     </LinearLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/button_settings"
+        android:id="@+id/button_add_file"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
-        android:contentDescription="@string/action_settings"
-        android:src="@drawable/ic_settings"
-        app:backgroundTint="@color/purple_700"
+        android:contentDescription="@string/action_add_file"
+        android:src="@drawable/ic_add"
+        app:backgroundTint="?attr/colorPrimary"
         app:elevation="6dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:tint="@color/white" />
+        app:tint="?attr/colorOnPrimary" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/onboardingOverlay"

@@ -1,5 +1,6 @@
 package com.codenzi.ceparsivi
 
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
@@ -8,6 +9,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.webkit.MimeTypeMap
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -26,6 +28,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
+import java.util.ArrayDeque
 import java.util.Date
 import java.util.Locale
 
@@ -40,6 +43,9 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     private val keyViewMode = "key_view_mode"
     private var activeTheme: String? = null
 
+    // Seçilen dosyaları işlemek için bir kuyruk yapısı
+    private val fileUrisToProcess = ArrayDeque<Uri>()
+
     private enum class SortOrder {
         DATE_DESC,
         NAME_ASC,
@@ -47,6 +53,24 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         SIZE_ASC,
         SIZE_DESC
     }
+
+    // Kullanıcının birden fazla dosya seçmesini sağlayan ActivityResultLauncher
+    private val filePickerLauncher = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isNotEmpty()) {
+            fileUrisToProcess.addAll(uris)
+            processNextUriInQueue()
+        }
+    }
+
+    // SaveFileActivity'yi başlatıp sonucunu dinleyen ActivityResultLauncher
+    private val saveActivityLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        // SaveFileActivity kapandığında (başarılı, iptal veya geri tuşu)
+        // kuyruktaki bir sonraki dosyayı işlemeye devam et
+        if (result.resultCode == Activity.RESULT_CANCELED || result.resultCode == Activity.RESULT_OK) {
+            processNextUriInQueue()
+        }
+    }
+
 
     private val categoryOrderResIds = listOf(
         R.string.category_office,
@@ -87,8 +111,8 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         setSupportActionBar(binding.toolbar)
         setupRecyclerView()
 
-        binding.buttonSettings.setOnClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
+        binding.buttonAddFile.setOnClickListener {
+            filePickerLauncher.launch(arrayOf("*/*"))
         }
     }
 
@@ -173,6 +197,10 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             }
             R.id.action_toggle_view -> {
                 toggleViewMode()
+                true
+            }
+            R.id.action_settings -> {
+                startActivity(Intent(this, SettingsActivity::class.java))
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -339,7 +367,8 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
         mode.menuInflater.inflate(R.menu.contextual_action_menu, menu)
-        binding.appBarLayout.isVisible = false
+        // Üst barı gizleyen kod kaldırıldı.
+        // binding.appBarLayout.isVisible = false
         return true
     }
 
@@ -497,6 +526,25 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             startActivity(intent)
         } catch (_: ActivityNotFoundException) {
             Toast.makeText(this, getString(R.string.error_no_app_to_open), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // --- YENİ EKLENEN FONKSİYON ---
+
+    /**
+     * Kuyruktaki bir sonraki dosyayı işler.
+     * Kuyruk boş değilse, ilk URI'yi alır ve isimlendirilip kaydedilmesi için
+     * SaveFileActivity'yi başlatır.
+     */
+    private fun processNextUriInQueue() {
+        if (fileUrisToProcess.isNotEmpty()) {
+            val uriToProcess = fileUrisToProcess.removeFirst()
+            val intent = Intent(this, SaveFileActivity::class.java).apply {
+                action = Intent.ACTION_SEND
+                putExtra(Intent.EXTRA_STREAM, uriToProcess)
+                type = contentResolver.getType(uriToProcess) ?: "*/*"
+            }
+            saveActivityLauncher.launch(intent)
         }
     }
 }

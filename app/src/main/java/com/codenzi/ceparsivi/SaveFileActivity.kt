@@ -1,20 +1,26 @@
 package com.codenzi.ceparsivi
 
+import android.app.Activity
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.util.Log
-import android.widget.EditText
-import android.widget.LinearLayout
+import android.view.LayoutInflater
+import android.widget.ImageView
 import android.widget.ProgressBar
-import android.widget.TextView
 import android.widget.Toast
+import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.createBitmap
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
+import com.bumptech.glide.Glide
+import com.codenzi.ceparsivi.databinding.DialogSaveFileBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -27,88 +33,48 @@ class SaveFileActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        progressBar = ProgressBar(this).apply {
-            isVisible = false
-        }
+        progressBar = ProgressBar(this).apply { isVisible = false }
         setContentView(progressBar)
 
-
-        if (intent?.action == Intent.ACTION_SEND && intent.type != null) {
-            val fileUri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                intent.getParcelableExtra(Intent.EXTRA_STREAM)
-            }
-
-            if (fileUri != null) {
-                val originalFileName = getFileName(fileUri)
-                showSaveDialog(fileUri, originalFileName)
-            } else {
-                Toast.makeText(this, getString(R.string.file_not_received), Toast.LENGTH_SHORT).show()
-                finish()
-            }
+        val fileUri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
         } else {
-            finish()
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra(Intent.EXTRA_STREAM)
+        }
+
+        if (intent?.action == Intent.ACTION_SEND && fileUri != null) {
+            showSaveDialog(fileUri)
+        } else {
+            finishWithResult(Activity.RESULT_CANCELED)
         }
     }
 
-    private fun showSaveDialog(fileUri: Uri, originalFileName: String) {
-        val fileExtension = originalFileName.substringAfterLast('.', "")
+    private fun showSaveDialog(fileUri: Uri) {
+        val originalFileName = getFileName(fileUri)
+        val binding = DialogSaveFileBinding.inflate(LayoutInflater.from(this))
         val fileNameWithoutExtension = originalFileName.substringBeforeLast('.', originalFileName)
+        val fileExtension = originalFileName.substringAfterLast('.', "")
 
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(50, 40, 50, 0)
-        }
+        binding.editTextFileName.setText(fileNameWithoutExtension)
+        binding.textViewExtension.text = if (fileExtension.isNotEmpty()) ".$fileExtension" else ""
 
-        val editTextFileName = EditText(this).apply {
-            setText(fileNameWithoutExtension)
-            layoutParams = LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                1.0f
-            )
-        }
-
-        val textViewExtension = TextView(this).apply {
-            text = if (fileExtension.isNotEmpty()) ".$fileExtension" else ""
-            textSize = 16f
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                leftMargin = 8
-            }
-        }
-
-        layout.addView(editTextFileName)
-        if (fileExtension.isNotEmpty()) {
-            layout.addView(textViewExtension)
-        }
+        setupPreview(binding, fileUri, fileExtension)
 
         val dialog = AlertDialog.Builder(this)
-            .setTitle(getString(R.string.give_file_a_name))
-            .setView(layout)
+            .setView(binding.root)
             .setPositiveButton(getString(R.string.save), null)
-            .setNegativeButton(getString(R.string.cancel)) { d, _ ->
-                d.cancel()
-                finish()
-            }
-            .setOnCancelListener {
-                finish()
-            }
+            .setNegativeButton(getString(R.string.cancel)) { _, _ -> finishWithResult(Activity.RESULT_CANCELED) }
+            .setOnCancelListener { finishWithResult(Activity.RESULT_CANCELED) }
             .create()
 
         dialog.setOnShowListener {
-            val positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-            positiveButton.setOnClickListener {
-                val newBaseName = editTextFileName.text.toString().trim()
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val newBaseName = binding.editTextFileName.text.toString().trim()
                 if (newBaseName.isNotBlank()) {
-
                     val newName = if (fileExtension.isNotEmpty()) "$newBaseName.$fileExtension" else newBaseName
-                    handleSaveRequest(fileUri, newName, dialog)
+                    dialog.dismiss()
+                    processSaveRequest(fileUri, newName)
                 } else {
                     Toast.makeText(this, getString(R.string.error_invalid_name), Toast.LENGTH_SHORT).show()
                 }
@@ -117,134 +83,159 @@ class SaveFileActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun handleSaveRequest(uri: Uri, newName: String, parentDialog: AlertDialog) {
-        progressBar.isVisible = true
+    private fun processSaveRequest(uri: Uri, newName: String) {
         lifecycleScope.launch {
-            val hash = FileHashManager.calculateMD5(this@SaveFileActivity, uri)
-            withContext(Dispatchers.Main) {
-                progressBar.isVisible = false
-                if (hash != null && FileHashManager.hashExists(this@SaveFileActivity, hash)) {
-                    val existingFileName = FileHashManager.getFileNameForHash(this@SaveFileActivity, hash)
-                    showDuplicateContentDialog(uri, newName, existingFileName ?: "", parentDialog)
-                } else {
-                    checkForNameAndSave(uri, newName, hash, parentDialog)
-                }
-            }
-        }
-    }
+            progressBar.isVisible = true
 
-    private fun checkForNameAndSave(uri: Uri, newName: String, hash: String?, parentDialog: AlertDialog) {
-        val outputFile = File(filesDir, "arsiv/$newName")
-        if (outputFile.exists()) {
-            showOverwriteConfirmationDialog(uri, newName, hash, parentDialog)
-        } else {
-            parentDialog.dismiss()
+            // Adım 1: İçerik kontrolü (Hash)
+            val hash = FileHashManager.calculateMD5(this@SaveFileActivity, uri)
+            if (hash != null && FileHashManager.hashExists(this@SaveFileActivity, hash)) {
+                withContext(Dispatchers.Main) {
+                    val existingFileName = FileHashManager.getFileNameForHash(this@SaveFileActivity, hash) ?: newName
+                    Toast.makeText(this@SaveFileActivity, "Bu dosya zaten '$existingFileName' adıyla mevcut.", Toast.LENGTH_LONG).show()
+                    finishWithResult(Activity.RESULT_CANCELED)
+                }
+                return@launch
+            }
+
+            // Adım 2: İsim kontrolü
+            val outputFile = File(filesDir, "arsiv/$newName")
+            if (outputFile.exists()) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@SaveFileActivity, "'$newName' adında bir dosya zaten var. Lütfen farklı bir isim seçin.", Toast.LENGTH_LONG).show()
+                    finishWithResult(Activity.RESULT_CANCELED)
+                }
+                return@launch
+            }
+
             saveFileAndFinish(uri, newName, hash)
         }
     }
 
-    private fun showDuplicateContentDialog(uri: Uri, newName: String, existingFileName: String, parentDialog: AlertDialog) {
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.duplicate_file_found))
-            .setMessage(getString(R.string.duplicate_file_message, existingFileName, newName))
-            .setPositiveButton(getString(R.string.action_save_copy)) { _, _ ->
-                checkForNameAndSave(uri, newName, null, parentDialog)
-            }
-            .setNegativeButton(getString(R.string.cancel)) { _, _ ->
-                parentDialog.dismiss()
-                finish()
-            }
-            .setOnCancelListener {
-                parentDialog.dismiss()
-                finish()
-            }
-            .show()
-    }
-
-    private fun showOverwriteConfirmationDialog(uri: Uri, name: String, hash: String?, parentDialog: AlertDialog) {
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.file_already_exists))
-            .setMessage(getString(R.string.overwrite_confirmation, name))
-            .setPositiveButton(getString(R.string.replace)) { _, _ ->
-                parentDialog.dismiss()
-                FileHashManager.removeHashForFile(this, name)
-                saveFileAndFinish(uri, name, hash)
-            }
-            .setNegativeButton(getString(R.string.cancel)) { _, _ ->
-                parentDialog.dismiss()
-                finish()
-            }
-            .setOnCancelListener {
-                parentDialog.dismiss()
-                finish()
-            }
-            .show()
-    }
-
     private fun saveFileAndFinish(uri: Uri, newName: String, hash: String?) {
         lifecycleScope.launch {
-            progressBar.isVisible = true
             val success = copyFileToInternalStorage(uri, newName)
             withContext(Dispatchers.Main) {
                 progressBar.isVisible = false
                 if (success) {
                     hash?.let { FileHashManager.addHash(applicationContext, it, newName) }
                     Toast.makeText(applicationContext, getString(R.string.file_saved_as, newName), Toast.LENGTH_LONG).show()
-                    val mainActivityIntent = Intent(applicationContext, MainActivity::class.java).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    }
-                    startActivity(mainActivityIntent)
                 } else {
                     Toast.makeText(applicationContext, getString(R.string.error_file_not_saved), Toast.LENGTH_LONG).show()
                 }
-                finish()
+                finishWithResult(Activity.RESULT_OK)
             }
         }
     }
 
-    private suspend fun copyFileToInternalStorage(uri: Uri, newName: String): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val outputDir = File(filesDir, "arsiv")
-                    if (!outputDir.exists()) {
-                        outputDir.mkdirs()
-                    }
-                    val outputFile = File(outputDir, newName)
-                    FileOutputStream(outputFile).use { outputStream ->
-                        inputStream.copyTo(outputStream)
+    private fun setupPreview(binding: DialogSaveFileBinding, uri: Uri, extension: String) {
+        val mimeType = contentResolver.getType(uri) ?: ""
+        val imageViewPreview = binding.imageViewPreview
+        when {
+            mimeType.startsWith("image/") -> {
+                imageViewPreview.isVisible = true
+                imageViewPreview.scaleType = ImageView.ScaleType.CENTER_CROP
+                Glide.with(this).load(uri).into(imageViewPreview)
+            }
+            mimeType.startsWith("video/") -> {
+                imageViewPreview.isVisible = true
+                imageViewPreview.scaleType = ImageView.ScaleType.CENTER_CROP
+                Glide.with(this).load(uri).placeholder(R.drawable.ic_file_video).into(imageViewPreview)
+            }
+            extension.equals("pdf", ignoreCase = true) -> {
+                imageViewPreview.isVisible = true
+                lifecycleScope.launch {
+                    val bitmap = renderPdfThumbnail(uri)
+                    if (bitmap != null) {
+                        imageViewPreview.setImageBitmap(bitmap)
+                    } else {
+                        imageViewPreview.setImageResource(R.drawable.ic_file_pdf)
                     }
                 }
-                true
-            } catch (e: Exception) {
-                Log.e("SaveFileActivity", "Dosya kopyalanamadı", e)
-                false
             }
+            else -> {
+                imageViewPreview.isVisible = true
+                val categoryResId = getFileCategoryResId(extension)
+                imageViewPreview.setImageResource(getFileIcon(categoryResId, extension))
+            }
+        }
+    }
+
+    private suspend fun renderPdfThumbnail(uri: Uri): Bitmap? = withContext(Dispatchers.IO) {
+        try {
+            contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                val renderer = PdfRenderer(pfd)
+                renderer.openPage(0).use { page ->
+                    val bitmap = createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
+                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                    return@withContext bitmap
+                }
+            }
+            return@withContext null
+        } catch (e: Exception) {
+            Log.e("SaveFileActivity", "PDF önizlemesi oluşturulamadı", e)
+            return@withContext null
+        }
+    }
+
+    private suspend fun copyFileToInternalStorage(uri: Uri, newName: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            contentResolver.openInputStream(uri)?.use { inputStream ->
+                val outputDir = File(filesDir, "arsiv")
+                if (!outputDir.exists()) outputDir.mkdirs()
+                FileOutputStream(File(outputDir, newName)).use { outputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("SaveFileActivity", "Dosya kopyalanamadı", e)
+            false
         }
     }
 
     private fun getFileName(uri: Uri): String {
-        var result: String? = null
-        if (uri.scheme == "content") {
-            try {
-                contentResolver.query(uri, null, null, null, null)?.use {
-                    if (it.moveToFirst()) {
-                        val columnIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                        if (columnIndex >= 0) {
-                            result = it.getString(columnIndex)
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w("SaveFileActivity", "ContentResolver ile dosya adı alınamadı", e)
+        contentResolver.query(uri, null, null, null, null)?.use {
+            if (it.moveToFirst()) {
+                val colIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (colIndex >= 0) return it.getString(colIndex)
             }
         }
-        if (result == null) {
-            result = uri.path?.let { path ->
-                val cut = path.lastIndexOf('/')
-                if (cut != -1) path.substring(cut + 1) else path
+        return uri.path?.let { File(it).name } ?: "isimsiz_dosya_${System.currentTimeMillis()}"
+    }
+
+    private fun finishWithResult(resultCode: Int) {
+        setResult(resultCode)
+        finish()
+    }
+
+    @StringRes
+    private fun getFileCategoryResId(extension: String): Int {
+        return when (extension.lowercase()) {
+            "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "txt" -> R.string.category_office
+            "jpg", "jpeg", "png", "webp", "gif", "bmp" -> R.string.category_images
+            "mp4", "mkv", "avi", "mov", "3gp", "webm" -> R.string.category_videos
+            "mp3", "wav", "m4a", "aac", "flac", "ogg" -> R.string.category_audio
+            "zip", "rar", "7z", "tar", "gz" -> R.string.category_archives
+            else -> R.string.category_other
+        }
+    }
+
+    private fun getFileIcon(categoryResId: Int, extension: String): Int {
+        if (categoryResId == R.string.category_office) {
+            return when (extension.lowercase()) {
+                "pdf" -> R.drawable.ic_file_pdf
+                "doc", "docx" -> R.drawable.ic_file_doc
+                "ppt", "pptx" -> R.drawable.ic_file_doc
+                else -> R.drawable.ic_file_generic
             }
         }
-        return result?.takeIf { it.isNotBlank() } ?: "isimsiz_dosya_${System.currentTimeMillis()}"
+        return when (categoryResId) {
+            R.string.category_images -> R.drawable.ic_file_image
+            R.string.category_videos -> R.drawable.ic_file_video
+            R.string.category_audio -> R.drawable.ic_file_audio
+            R.string.category_archives -> R.drawable.ic_file_archive
+            else -> R.drawable.ic_file_generic
+        }
     }
 }

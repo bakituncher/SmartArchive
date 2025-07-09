@@ -65,5 +65,7 @@
     <string name="action_save_copy">Save Copy</string>
     <string name="action_privacy_policy">Privacy Policy</string>
     <string name="privacy_policy_url" translatable="false">https://www.codenzi.com/privacy-smart-archive.html</string>
+    <string name="action_add_file">Add File</string>
+    <string name="play_pause_button">Play or Pause Audio</string>
 
 </resources>

@@ -64,4 +64,6 @@
     <string name="action_save_copy">Kopyayı Kaydet</string>
     <string name="action_privacy_policy">Gizlilik Politikası</string>
     <string name="privacy_policy_url" translatable="false">https://www.codenzi.com/privacy-smart-archive.html</string>
+    <string name="action_add_file">Dosya Ekle</string>
+    <string name="play_pause_button">Sesi Oynat veya Duraklat</string>
 </resources>
