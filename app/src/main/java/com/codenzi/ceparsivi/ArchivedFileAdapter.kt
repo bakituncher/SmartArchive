@@ -12,6 +12,7 @@ import android.util.LruCache
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import android.webkit.MimeTypeMap
 import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -98,22 +99,20 @@ class ArchivedFileAdapter(
         }
     }
 
-    private fun getIconForCategory(context: Context, categoryName: String, fileName: String): Int {
+    /**
+     * DÜZELTME: Bu fonksiyon artık kategori adını yoksayarak, doğrudan dosya uzantısına göre
+     * doğru ikonu döndürür. Bu, özel kategorilerdeki ikon sorununu çözer.
+     */
+    private fun getIconForFile(fileName: String): Int {
         val extension = fileName.substringAfterLast('.', "").lowercase()
-        if (categoryName == context.getString(R.string.category_office)) {
-            return when (extension) {
-                "pdf" -> R.drawable.ic_file_pdf
-                "doc", "docx" -> R.drawable.ic_file_doc
-                "ppt", "pptx" -> R.drawable.ic_file_doc
-                else -> R.drawable.ic_file_generic
-            }
-        }
-        return when (categoryName) {
-            context.getString(R.string.category_images) -> R.drawable.ic_file_image
-            context.getString(R.string.category_videos) -> R.drawable.ic_file_video
-            context.getString(R.string.category_audio) -> R.drawable.ic_file_audio
-            context.getString(R.string.category_archives) -> R.drawable.ic_file_archive
-            else -> R.drawable.ic_file_generic // Diğer ve özel kategoriler için
+        return when (extension) {
+            "pdf" -> R.drawable.ic_file_pdf
+            "doc", "docx", "ppt", "pptx", "xls", "xlsx", "txt" -> R.drawable.ic_file_doc
+            "jpg", "jpeg", "png", "webp", "gif", "bmp" -> R.drawable.ic_file_image
+            "mp4", "mkv", "avi", "mov", "3gp", "webm" -> R.drawable.ic_file_video
+            "mp3", "wav", "m4a", "aac", "flac", "ogg" -> R.drawable.ic_file_audio
+            "zip", "rar", "7z", "tar", "gz" -> R.drawable.ic_file_archive
+            else -> R.drawable.ic_file_generic
         }
     }
 
@@ -121,7 +120,8 @@ class ArchivedFileAdapter(
         fun bind(file: ArchivedFile, onClick: (ArchivedFile) -> Unit, onLongClick: (ArchivedFile) -> Boolean, isSelected: Boolean) {
             binding.textViewFileName.text = file.fileName
             binding.textViewFileDate.text = file.dateAdded
-            binding.imageViewFileType.setImageResource(getIconForCategory(itemView.context, file.category, file.fileName))
+            // DÜZELTME: İkon, kategoriye göre değil, dosya türüne göre belirleniyor.
+            binding.imageViewFileType.setImageResource(getIconForFile(file.fileName))
             binding.root.setBackgroundColor(if (isSelected) ContextCompat.getColor(itemView.context, R.color.purple_200) else Color.TRANSPARENT)
             itemView.setOnClickListener { onClick(file) }
             itemView.setOnLongClickListener { onLongClick(file) }
@@ -138,35 +138,34 @@ class ArchivedFileAdapter(
 
         fun bind(file: ArchivedFile, onClick: (ArchivedFile) -> Unit, onLongClick: (ArchivedFile) -> Boolean, isSelected: Boolean) {
             binding.textViewFileNameGrid.text = file.fileName
-            val extension = file.fileName.substringAfterLast('.', "").lowercase()
-
             cancelJob()
 
             binding.imageViewFileTypeGrid.imageTintList = null
             binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_CROP
 
-            val categoryImages = itemView.context.getString(R.string.category_images)
-            val categoryVideos = itemView.context.getString(R.string.category_videos)
+            // DÜZELTME: Önizleme mantığı artık kategori adını değil, dosyanın MIME türünü veya uzantısını kontrol ediyor.
+            // Bu, özel kategorilerdeki önizleme sorununu çözer.
+            val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.fileName.substringAfterLast('.', "")) ?: "*/*"
+            val extension = file.fileName.substringAfterLast('.', "").lowercase()
 
-            when (file.category) {
-                categoryImages, categoryVideos -> {
+            when {
+                mimeType.startsWith("image/") || mimeType.startsWith("video/") -> {
                     Glide.with(itemView.context)
                         .load(File(file.filePath))
                         .placeholder(R.drawable.ic_file_generic)
-                        .error(getIconForCategory(itemView.context, file.category, file.fileName))
+                        .error(getIconForFile(file.fileName))
                         .into(binding.imageViewFileTypeGrid)
                 }
-                else -> {
-                    if (extension == "pdf") {
-                        val cachedBitmap = ThumbnailCache.memoryCache.get(file.filePath)
-                        if (cachedBitmap != null) {
-                            binding.imageViewFileTypeGrid.setImageBitmap(cachedBitmap)
-                        } else {
-                            thumbnailJob = generatePdfPreview(file)
-                        }
+                extension == "pdf" -> {
+                    val cachedBitmap = ThumbnailCache.memoryCache.get(file.filePath)
+                    if (cachedBitmap != null) {
+                        binding.imageViewFileTypeGrid.setImageBitmap(cachedBitmap)
                     } else {
-                        setGenericIcon(file)
+                        thumbnailJob = generatePdfPreview(file)
                     }
+                }
+                else -> {
+                    setGenericIcon(file)
                 }
             }
 
@@ -183,7 +182,7 @@ class ArchivedFileAdapter(
             itemView.context.theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, typedValue, true)
             binding.imageViewFileTypeGrid.imageTintList = ColorStateList.valueOf(typedValue.data)
             binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_INSIDE
-            binding.imageViewFileTypeGrid.setImageResource(getIconForCategory(itemView.context, file.category, file.fileName))
+            binding.imageViewFileTypeGrid.setImageResource(getIconForFile(file.fileName))
         }
 
         private fun generatePdfPreview(file: ArchivedFile): Job? {
