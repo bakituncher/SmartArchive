@@ -56,6 +56,18 @@
         android:textColor="?android:attr/textColorPrimary" />
 
     <TextView
+        android:id="@+id/buttonMove"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackground"
+        app:drawableStartCompat="@drawable/ic_drive_file_move"
+        android:drawablePadding="16dp"
+        android:gravity="center_vertical"
+        android:padding="12dp"
+        android:text="@string/action_move_category"
+        android:textColor="?android:attr/textColorPrimary" />
+
+    <TextView
         android:id="@+id/buttonDelete"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

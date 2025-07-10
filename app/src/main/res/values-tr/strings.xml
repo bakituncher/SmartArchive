@@ -82,6 +82,12 @@
     <string name="category_name_hint">Kategori Adı</string>
     <string name="select_a_category">Bir kategori seçin...</string>
     <string name="category_selection_info">Kategori seçilmezse, dosyaya uygun bir kategori otomatik atanacaktır.</string>
+    <string name="action_move_category">Kategoriyi Taşı</string>
+    <string name="file_moved_to_category">Dosya, \'%1$s\' kategorisine taşındı.</string>
+    <string name="add_file_dialog_title">Yeni Dosya Ekle</string>
+    <string name="option_take_photo">Fotoğraf Çek</string>
+    <string name="option_record_video">Video Kaydet</string>
+    <string name="option_from_gallery">Galeriden Seç</string>
 
 
 </resources>

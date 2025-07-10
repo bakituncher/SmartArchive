@@ -1,8 +1,10 @@
 package com.codenzi.ceparsivi
 
+import android.Manifest
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
@@ -14,6 +16,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
 import androidx.appcompat.widget.SearchView
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.content.edit
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -43,12 +46,36 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     private var activeTheme: String? = null
     private val fileUrisToProcess = ArrayDeque<Uri>()
 
+    private var latestTmpUri: Uri? = null
+
+    // YENİ EKLENDİ: Hangi kamera işleminin istendiğini tutmak için bir değişken
+    private var pendingCameraAction: (() -> Unit)? = null
+
     private enum class SortOrder {
-        DATE_DESC,
-        NAME_ASC,
-        NAME_DESC,
-        SIZE_ASC,
-        SIZE_DESC
+        DATE_DESC, NAME_ASC, NAME_DESC, SIZE_ASC, SIZE_DESC
+    }
+
+    // YENİ EKLENDİ: Kamera izni istemek için launcher
+    private val requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
+        if (isGranted) {
+            // İzin verildiyse, bekleyen kamera işlemini çalıştır
+            pendingCameraAction?.invoke()
+        } else {
+            Toast.makeText(this, "Kamera izni olmadan bu özellik kullanılamaz.", Toast.LENGTH_LONG).show()
+        }
+        pendingCameraAction = null // Bekleyen işlemi temizle
+    }
+
+    private val takeImageResult = registerForActivityResult(ActivityResultContracts.TakePicture()) { isSuccess ->
+        if (isSuccess) {
+            latestTmpUri?.let { uri -> launchSaveActivity(uri) }
+        }
+    }
+
+    private val takeVideoResult = registerForActivityResult(ActivityResultContracts.CaptureVideo()) { isSuccess ->
+        if (isSuccess) {
+            latestTmpUri?.let { uri -> launchSaveActivity(uri) }
+        }
     }
 
     private val filePickerLauncher = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
@@ -92,9 +119,97 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         setupRecyclerView()
 
         binding.buttonAddFile.setOnClickListener {
-            filePickerLauncher.launch(arrayOf("*/*"))
+            showAddOptionsDialog()
         }
     }
+
+    private fun showAddOptionsDialog() {
+        val options = arrayOf(
+            getString(R.string.option_take_photo),
+            getString(R.string.option_record_video),
+            getString(R.string.option_from_gallery)
+        )
+
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.add_file_dialog_title))
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> checkCameraPermissionAndTakePhoto()
+                    1 -> checkCameraPermissionAndTakeVideo()
+                    // DÜZELTME: "Galeriden Seç" artık sadece resim ve videoları gösterecek şekilde filtrelendi.
+                    2 -> filePickerLauncher.launch(arrayOf("image/*", "video/*"))
+                }
+            }
+            .show()
+    }
+
+    // YENİ EKLENDİ: Fotoğraf çekmeden önce kamera iznini kontrol eden fonksiyon
+    private fun checkCameraPermissionAndTakePhoto() {
+        when {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED -> {
+                takeImage()
+            }
+            else -> {
+                // Bekleyen işlemi ayarla ve izin iste
+                pendingCameraAction = { takeImage() }
+                requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+        }
+    }
+
+    // YENİ EKLENDİ: Video kaydetmeden önce kamera iznini kontrol eden fonksiyon
+    private fun checkCameraPermissionAndTakeVideo() {
+        when {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED -> {
+                takeVideo()
+            }
+            else -> {
+                // Bekleyen işlemi ayarla ve izin iste
+                pendingCameraAction = { takeVideo() }
+                requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+        }
+    }
+
+    private fun takeImage() {
+        lifecycleScope.launch {
+            getTmpFileUri().let { uri ->
+                latestTmpUri = uri
+                takeImageResult.launch(uri)
+            }
+        }
+    }
+
+    private fun takeVideo() {
+        lifecycleScope.launch {
+            getTmpFileUri(isVideo = true).let { uri ->
+                latestTmpUri = uri
+                takeVideoResult.launch(uri)
+            }
+        }
+    }
+
+    private fun getTmpFileUri(isVideo: Boolean = false): Uri {
+        val extension = if (isVideo) ".mp4" else ".jpg"
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+        val tmpFile = File.createTempFile("media_${timeStamp}_", extension, cacheDir).apply {
+            createNewFile()
+            deleteOnExit()
+        }
+        return FileProvider.getUriForFile(applicationContext, "${applicationContext.packageName}.provider", tmpFile)
+    }
+
+    private fun launchSaveActivity(uri: Uri) {
+        val intent = Intent(this, SaveFileActivity::class.java).apply {
+            action = Intent.ACTION_SEND
+            putExtra(Intent.EXTRA_STREAM, uri)
+            type = contentResolver.getType(uri) ?: if (uri.toString().endsWith(".mp4")) "video/mp4" else "image/jpeg"
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        saveActivityLauncher.launch(intent)
+    }
+
+    // ... (MainActivity'nin geri kalan tüm fonksiyonları aynı kalacak, aşağıya eklenmiştir)
 
     private fun checkFirstLaunch() {
         val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
@@ -135,7 +250,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.main_menu, menu)
         val viewToggleItem = menu.findItem(R.id.action_toggle_view)
-        viewToggleItem.icon = if (currentViewMode == ViewMode.LIST) getDrawable(R.drawable.ic_view_grid) else getDrawable(R.drawable.ic_view_list)
+        viewToggleItem.icon = if (currentViewMode == ViewMode.LIST) ContextCompat.getDrawable(this, R.drawable.ic_view_grid) else ContextCompat.getDrawable(this, R.drawable.ic_view_list)
         val searchItem = menu.findItem(R.id.action_search)
         val searchView = searchItem.actionView as? SearchView
         searchView?.setOnQueryTextListener(this)
@@ -174,7 +289,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             GridLayoutManager(this, 3).apply {
                 spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                     override fun getSpanSize(position: Int): Int {
-                        return if (position < fileAdapter.itemCount && fileAdapter.getItemViewType(position) == ArchivedFileAdapter.VIEW_TYPE_HEADER) 3 else 1
+                        return if (fileAdapter.itemCount > position && fileAdapter.getItemViewType(position) == ArchivedFileAdapter.VIEW_TYPE_HEADER) 3 else 1
                     }
                 }
             }
@@ -204,7 +319,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     private suspend fun updateFullList() {
         val allFiles = readFilesFromDisk()
-        // İkincil sıralama kriterini belirle
         val secondaryComparator = when (currentSortOrder) {
             SortOrder.NAME_ASC -> compareBy { it.fileName.lowercase() }
             SortOrder.NAME_DESC -> compareByDescending { it.fileName.lowercase() }
@@ -213,13 +327,11 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             SortOrder.DATE_DESC -> compareByDescending<ArchivedFile> { File(it.filePath).lastModified() }
         }
 
-        // DÜZELTME: Kategori sıralama mantığı iyileştirildi.
-        // Bilinmeyen veya hatalı kategoriler artık listenin başına gelmeyecek.
         val categoryOrder = CategoryManager.getCategories(this).sorted()
         val sortedFiles = allFiles.sortedWith(
             compareBy<ArchivedFile> {
                 val index = categoryOrder.indexOf(it.category)
-                if (index == -1) Int.MAX_VALUE else index // Bilinmeyen kategorileri sona at
+                if (index == -1) Int.MAX_VALUE else index
             }.then(secondaryComparator)
         )
 
@@ -259,11 +371,10 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         val listWithHeaders = mutableListOf<ListItem>()
         val groupedByCategory = files.groupBy { it.category }
 
-        // Sıralı kategorilere göre başlıkları ve dosyaları ekle
         val categoryOrder = CategoryManager.getCategories(this).sorted()
         categoryOrder.forEach { categoryName ->
             groupedByCategory[categoryName]?.let { filesInCategory ->
-                if (filesInCategory.isNotEmpty()){
+                if (filesInCategory.isNotEmpty()) {
                     listWithHeaders.add(ListItem.HeaderItem(categoryName))
                     listWithHeaders.addAll(filesInCategory.map { ListItem.FileItem(it) })
                 }
@@ -288,9 +399,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             },
             onItemLongClick = { file ->
                 if (!fileAdapter.isSelectionMode) {
-                    actionMode = startSupportActionMode(this@MainActivity)
-                    fileAdapter.isSelectionMode = true
-                    toggleSelection(file)
+                    showFileDetails(file)
                 }
                 true
             }
@@ -380,7 +489,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         files.forEach { file ->
             val fileToShare = File(file.filePath)
             if (fileToShare.exists()) {
-                val authority = "$packageName.provider"
+                val authority = "${applicationContext.packageName}.provider"
                 uris.add(FileProvider.getUriForFile(this, authority, fileToShare))
             }
         }
@@ -413,6 +522,36 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         showMultiDeleteConfirmationDialog(listOf(file))
     }
 
+    override fun onMoveClicked(file: ArchivedFile) {
+        showCategorySelectionDialog(file)
+    }
+
+    private fun showCategorySelectionDialog(fileToMove: ArchivedFile) {
+        val categories = CategoryManager.getCategories(this)
+            .filter { it != fileToMove.category }
+            .sorted()
+            .toTypedArray()
+
+        if (categories.isEmpty()) {
+            Toast.makeText(this, "Taşınacak başka kategori bulunmuyor.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.action_move_category))
+            .setItems(categories) { dialog, which ->
+                val newCategory = categories[which]
+                lifecycleScope.launch {
+                    CategoryManager.setCategoryForFile(applicationContext, fileToMove.filePath, newCategory)
+                    Toast.makeText(applicationContext, getString(R.string.file_moved_to_category, newCategory), Toast.LENGTH_SHORT).show()
+                    updateFullList()
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
+    }
+
     private suspend fun deleteFiles(files: List<ArchivedFile>) {
         var deletedCount = 0
         withContext(Dispatchers.IO) {
@@ -443,7 +582,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             Toast.makeText(this, getString(R.string.error_file_not_found), Toast.LENGTH_SHORT).show()
             return
         }
-        val authority = "$packageName.provider"
+        val authority = "${applicationContext.packageName}.provider"
         val fileUri = FileProvider.getUriForFile(this, authority, fileToOpen)
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(fileUri, MimeTypeMap.getSingleton().getMimeTypeFromExtension(fileToOpen.extension) ?: "*/*")

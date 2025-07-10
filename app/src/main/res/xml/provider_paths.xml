@@ -3,4 +3,8 @@
     <files-path
         name="archived_files"
         path="arsiv/" />
+
+    <cache-path
+        name="cached_files"
+        path="." />
 </paths>

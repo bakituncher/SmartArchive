@@ -17,9 +17,11 @@ class FileDetailsBottomSheet : BottomSheetDialogFragment() {
     private val binding get() = _binding!!
     private var archivedFile: ArchivedFile? = null
 
+    // DÜZELTME: Listener arayüzüne onMoveClicked eklendi.
     interface FileDetailsListener {
         fun onShareClicked(file: ArchivedFile)
         fun onDeleteClicked(file: ArchivedFile)
+        fun onMoveClicked(file: ArchivedFile)
     }
 
     var listener: FileDetailsListener? = null
@@ -49,7 +51,6 @@ class FileDetailsBottomSheet : BottomSheetDialogFragment() {
 
         archivedFile?.let { file ->
             binding.textViewFileNameDetails.text = file.fileName
-            // Değişiklik: Kategori artık doğrudan String olarak alınıyor.
             binding.textViewCategory.text = getString(R.string.details_category, file.category)
             binding.textViewDate.text = getString(R.string.details_date, file.dateAdded)
             binding.textViewSize.text = getString(R.string.details_size, formatBytes(file.size))
@@ -60,6 +61,11 @@ class FileDetailsBottomSheet : BottomSheetDialogFragment() {
             }
             binding.buttonDelete.setOnClickListener {
                 listener?.onDeleteClicked(file)
+                dismiss()
+            }
+            // YENİ EKLENDİ: Taşıma butonunun tıklanma olayı
+            binding.buttonMove.setOnClickListener {
+                listener?.onMoveClicked(file)
                 dismiss()
             }
         } ?: dismiss()
