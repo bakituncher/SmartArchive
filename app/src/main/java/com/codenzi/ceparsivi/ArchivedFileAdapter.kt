@@ -1,5 +1,6 @@
 package com.codenzi.ceparsivi
 
+import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.Color
@@ -97,18 +98,37 @@ class ArchivedFileAdapter(
         }
     }
 
-    class ListViewHolder(private val binding: ItemFileBinding) : RecyclerView.ViewHolder(binding.root) {
+    private fun getIconForCategory(context: Context, categoryName: String, fileName: String): Int {
+        val extension = fileName.substringAfterLast('.', "").lowercase()
+        if (categoryName == context.getString(R.string.category_office)) {
+            return when (extension) {
+                "pdf" -> R.drawable.ic_file_pdf
+                "doc", "docx" -> R.drawable.ic_file_doc
+                "ppt", "pptx" -> R.drawable.ic_file_doc
+                else -> R.drawable.ic_file_generic
+            }
+        }
+        return when (categoryName) {
+            context.getString(R.string.category_images) -> R.drawable.ic_file_image
+            context.getString(R.string.category_videos) -> R.drawable.ic_file_video
+            context.getString(R.string.category_audio) -> R.drawable.ic_file_audio
+            context.getString(R.string.category_archives) -> R.drawable.ic_file_archive
+            else -> R.drawable.ic_file_generic // Diğer ve özel kategoriler için
+        }
+    }
+
+    inner class ListViewHolder(private val binding: ItemFileBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(file: ArchivedFile, onClick: (ArchivedFile) -> Unit, onLongClick: (ArchivedFile) -> Boolean, isSelected: Boolean) {
             binding.textViewFileName.text = file.fileName
             binding.textViewFileDate.text = file.dateAdded
-            binding.imageViewFileType.setImageResource(getFileIcon(file.categoryResId, file.fileName))
+            binding.imageViewFileType.setImageResource(getIconForCategory(itemView.context, file.category, file.fileName))
             binding.root.setBackgroundColor(if (isSelected) ContextCompat.getColor(itemView.context, R.color.purple_200) else Color.TRANSPARENT)
             itemView.setOnClickListener { onClick(file) }
             itemView.setOnLongClickListener { onLongClick(file) }
         }
     }
 
-    class GridViewHolder(private val binding: ItemFileGridBinding) : RecyclerView.ViewHolder(binding.root) {
+    inner class GridViewHolder(private val binding: ItemFileGridBinding) : RecyclerView.ViewHolder(binding.root) {
         private var thumbnailJob: Job? = null
 
         fun cancelJob() {
@@ -125,12 +145,15 @@ class ArchivedFileAdapter(
             binding.imageViewFileTypeGrid.imageTintList = null
             binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_CROP
 
-            when (file.categoryResId) {
-                R.string.category_images, R.string.category_videos -> {
+            val categoryImages = itemView.context.getString(R.string.category_images)
+            val categoryVideos = itemView.context.getString(R.string.category_videos)
+
+            when (file.category) {
+                categoryImages, categoryVideos -> {
                     Glide.with(itemView.context)
                         .load(File(file.filePath))
                         .placeholder(R.drawable.ic_file_generic)
-                        .error(getFileIcon(file.categoryResId, file.fileName))
+                        .error(getIconForCategory(itemView.context, file.category, file.fileName))
                         .into(binding.imageViewFileTypeGrid)
                 }
                 else -> {
@@ -160,7 +183,7 @@ class ArchivedFileAdapter(
             itemView.context.theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, typedValue, true)
             binding.imageViewFileTypeGrid.imageTintList = ColorStateList.valueOf(typedValue.data)
             binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_INSIDE
-            binding.imageViewFileTypeGrid.setImageResource(getFileIcon(file.categoryResId, file.fileName))
+            binding.imageViewFileTypeGrid.setImageResource(getIconForCategory(itemView.context, file.category, file.fileName))
         }
 
         private fun generatePdfPreview(file: ArchivedFile): Job? {
@@ -250,24 +273,6 @@ class ArchivedFileAdapter(
         selectedItems.clear()
         isSelectionMode = false
         positionsToUpdate.forEach { notifyItemChanged(it) }
-    }
-}
-
-private fun getFileIcon(categoryResId: Int, fileName: String): Int {
-    if (categoryResId == R.string.category_office) {
-        return when (fileName.substringAfterLast('.', "").lowercase()) {
-            "pdf" -> R.drawable.ic_file_pdf
-            "doc", "docx" -> R.drawable.ic_file_doc
-            "ppt", "pptx" -> R.drawable.ic_file_doc
-            else -> R.drawable.ic_file_generic
-        }
-    }
-    return when (categoryResId) {
-        R.string.category_images -> R.drawable.ic_file_image
-        R.string.category_videos -> R.drawable.ic_file_video
-        R.string.category_audio -> R.drawable.ic_file_audio
-        R.string.category_archives -> R.drawable.ic_file_archive
-        else -> R.drawable.ic_file_generic
     }
 }
 

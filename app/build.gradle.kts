@@ -7,7 +7,6 @@ plugins {
 
 android {
     namespace = "com.codenzi.ceparsivi"
-
     compileSdk = 35
 
     defaultConfig {
@@ -30,9 +29,15 @@ android {
         }
     }
 
+    // Hatanın düzeltildiği kısım burası
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
     kotlinOptions {
         jvmTarget = "1.8"
     }
+
     buildFeatures {
         viewBinding = true
     }
@@ -49,16 +54,15 @@ dependencies {
     // Splash Screen
     implementation(libs.androidx.splashscreen)
 
-
     // Glide
     implementation(libs.glide)
     kapt(libs.glide.compiler)
 
     // Lifecycle
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation("com.google.code.gson:gson:2.10.1")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }
-

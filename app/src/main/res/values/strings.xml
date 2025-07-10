@@ -67,5 +67,20 @@
     <string name="privacy_policy_url" translatable="false">https://www.codenzi.com/privacy-smart-archive.html</string>
     <string name="action_add_file">Add File</string>
     <string name="play_pause_button">Play or Pause Audio</string>
+    <string name="manage_categories">Manage Categories</string>
+    <string name="add_new_category">Add New Category</string>
+    <string name="add_new_category_spinner">Add New Category...</string>
+    <string name="rename_category">Rename Category</string>
+    <string name="action_rename">Rename</string>
+    <string name="add">Add</string>
+    <string name="category_name_empty">Category name cannot be empty.</string>
+    <string name="category_already_exists">This category already exists.</string>
+    <string name="cannot_delete_category_title">Cannot Delete Category</string>
+    <string name="cannot_delete_category_message">There are %1$d file(s) in the \'%2$s\' category. Please move them to another category before deleting.</string>
+    <string name="delete_category_confirmation_title">Delete \'%1$s\'?</string>
+    <string name="delete_category_confirmation_message">This category will be permanently deleted. This action cannot be undone.</string>
+    <string name="please_select_or_create_category">Please select or create a category.</string>
+    <string name="category_name_hint">Category Name</string>
+
 
 </resources>

@@ -66,4 +66,20 @@
     <string name="privacy_policy_url" translatable="false">https://www.codenzi.com/privacy-smart-archive.html</string>
     <string name="action_add_file">Dosya Ekle</string>
     <string name="play_pause_button">Sesi Oynat veya Duraklat</string>
+    <string name="manage_categories">Kategorileri Yönet</string>
+    <string name="add_new_category">Yeni Kategori Ekle</string>
+    <string name="add_new_category_spinner">Yeni Kategori Ekle...</string>
+    <string name="rename_category">Kategoriyi Yeniden Adlandır</string>
+    <string name="action_rename">Yeniden Adlandır</string>
+    <string name="add">Ekle</string>
+    <string name="category_name_empty">Kategori adı boş olamaz.</string>
+    <string name="category_already_exists">Bu kategori zaten mevcut.</string>
+    <string name="cannot_delete_category_title">Kategori Silinemiyor</string>
+    <string name="cannot_delete_category_message">\'%2$s\' kategorisinde %1$d adet dosya bulunuyor. Lütfen silmeden önce bu dosyaları başka bir kategoriye taşıyın.</string>
+    <string name="delete_category_confirmation_title">\'%1$s\' Silinsin mi?</string>
+    <string name="delete_category_confirmation_message">Bu kategori kalıcı olarak silinecektir. Bu işlem geri alınamaz.</string>
+    <string name="please_select_or_create_category">Lütfen bir kategori seçin veya oluşturun.</string>
+    <string name="category_name_hint">Kategori Adı</string>
+
+
 </resources>

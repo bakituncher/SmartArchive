@@ -10,7 +10,6 @@ import android.view.MenuItem
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
@@ -42,8 +41,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     private val keyViewMode = "key_view_mode"
     private var activeTheme: String? = null
-
-    // Seçilen dosyaları işlemek için bir kuyruk yapısı
     private val fileUrisToProcess = ArrayDeque<Uri>()
 
     private enum class SortOrder {
@@ -54,7 +51,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         SIZE_DESC
     }
 
-    // Kullanıcının birden fazla dosya seçmesini sağlayan ActivityResultLauncher
     private val filePickerLauncher = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isNotEmpty()) {
             fileUrisToProcess.addAll(uris)
@@ -62,24 +58,11 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         }
     }
 
-    // SaveFileActivity'yi başlatıp sonucunu dinleyen ActivityResultLauncher
     private val saveActivityLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        // SaveFileActivity kapandığında (başarılı, iptal veya geri tuşu)
-        // kuyruktaki bir sonraki dosyayı işlemeye devam et
         if (result.resultCode == Activity.RESULT_CANCELED || result.resultCode == Activity.RESULT_OK) {
             processNextUriInQueue()
         }
     }
-
-
-    private val categoryOrderResIds = listOf(
-        R.string.category_office,
-        R.string.category_images,
-        R.string.category_videos,
-        R.string.category_audio,
-        R.string.category_archives,
-        R.string.category_other
-    )
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
@@ -89,9 +72,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
-
         activeTheme = ThemeManager.getTheme(this)
-
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -107,7 +88,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         }
 
         checkFirstLaunch()
-
         setSupportActionBar(binding.toolbar)
         setupRecyclerView()
 
@@ -119,70 +99,43 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     private fun checkFirstLaunch() {
         val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
         val isFirstLaunch = prefs.getBoolean("isFirstLaunch", true)
-
         if (isFirstLaunch) {
-            // Cihaz dilini kontrol et
             val currentLanguage = Locale.getDefault().language
-
-            // Dile göre doğru görseli ata
-            val imageResource = if (currentLanguage == "tr") {
-                R.drawable.learn // Türkçe için
-            } else {
-                R.drawable.learn_en // İngilizce ve diğer diller için
-            }
+            val imageResource = if (currentLanguage == "tr") R.drawable.learn else R.drawable.learn_en
             binding.onboardingImageView.setImageResource(imageResource)
-
-            // Tanıtım ekranını görünür yap
             binding.onboardingOverlay.isVisible = true
         }
-
         binding.closeOnboardingButton.setOnClickListener {
             binding.onboardingOverlay.animate()
                 .alpha(0f)
-                .withEndAction {
-                    binding.onboardingOverlay.isVisible = false
-                }
+                .withEndAction { binding.onboardingOverlay.isVisible = false }
                 .setDuration(300)
                 .start()
-
-            prefs.edit {
-                putBoolean("isFirstLaunch", false)
-            }
+            prefs.edit { putBoolean("isFirstLaunch", false) }
         }
     }
 
     override fun onResume() {
         super.onResume()
-
-
-
         val newTheme = ThemeManager.getTheme(this)
         if (activeTheme != null && activeTheme != newTheme) {
-
             ThemeManager.applyTheme(newTheme)
-
             recreate()
-
             return
         }
-
-        lifecycleScope.launch {
-            updateFullList()
-        }
+        lifecycleScope.launch { updateFullList() }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        lifecycleScope.launch {
-            updateFullList()
-        }
+        lifecycleScope.launch { updateFullList() }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.main_menu, menu)
         val viewToggleItem = menu.findItem(R.id.action_toggle_view)
-        viewToggleItem.setIcon(if (currentViewMode == ViewMode.LIST) R.drawable.ic_view_grid else R.drawable.ic_view_list)
+        viewToggleItem.icon = if (currentViewMode == ViewMode.LIST) getDrawable(R.drawable.ic_view_grid) else getDrawable(R.drawable.ic_view_list)
         val searchItem = menu.findItem(R.id.action_search)
         val searchView = searchItem.actionView as? SearchView
         searchView?.setOnQueryTextListener(this)
@@ -215,30 +168,19 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     }
 
     private fun setupLayoutManager() {
-        if (currentViewMode == ViewMode.LIST) {
-            binding.recyclerViewFiles.layoutManager = LinearLayoutManager(this)
+        binding.recyclerViewFiles.layoutManager = if (currentViewMode == ViewMode.LIST) {
+            LinearLayoutManager(this)
         } else {
-
-            val gridLayoutManager = GridLayoutManager(this, 3)
-            gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
-                override fun getSpanSize(position: Int): Int {
-                    return try {
-                        if (fileAdapter.getItemViewType(position) == ArchivedFileAdapter.VIEW_TYPE_HEADER) {
-                            3
-                        } else {
-                            1
-                        }
-
-                    } catch (_: Exception) {
-                        1
+            GridLayoutManager(this, 3).apply {
+                spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                    override fun getSpanSize(position: Int): Int {
+                        return if (position < fileAdapter.itemCount && fileAdapter.getItemViewType(position) == ArchivedFileAdapter.VIEW_TYPE_HEADER) 3 else 1
                     }
                 }
             }
-            binding.recyclerViewFiles.layoutManager = gridLayoutManager
         }
         binding.recyclerViewFiles.adapter = fileAdapter
     }
-
 
     private fun showSortDialog() {
         val sortOptions = arrayOf(
@@ -253,9 +195,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             .setTitle(getString(R.string.sort_dialog_title))
             .setSingleChoiceItems(sortOptions, currentSelection) { dialog, which ->
                 currentSortOrder = SortOrder.entries[which]
-                lifecycleScope.launch {
-                    updateFullList()
-                }
+                lifecycleScope.launch { updateFullList() }
                 dialog.dismiss()
             }
             .setNegativeButton(getString(R.string.cancel), null)
@@ -264,7 +204,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     private suspend fun updateFullList() {
         val allFiles = readFilesFromDisk()
-
         val secondaryComparator = when (currentSortOrder) {
             SortOrder.NAME_ASC -> compareBy { it.fileName.lowercase() }
             SortOrder.NAME_DESC -> compareByDescending { it.fileName.lowercase() }
@@ -273,8 +212,11 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             SortOrder.DATE_DESC -> compareByDescending<ArchivedFile> { File(it.filePath).lastModified() }
         }
 
+        // Kategori sıralaması için sabit bir liste kullan
+        val categoryOrder = CategoryManager.getCategories(this).sorted()
+
         val sortedFiles = allFiles.sortedWith(
-            compareBy<ArchivedFile> { categoryOrderResIds.indexOf(it.categoryResId) }
+            compareBy<ArchivedFile> { categoryOrder.indexOf(it.category) }
                 .then(secondaryComparator)
         )
 
@@ -286,8 +228,10 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         }
 
         val finalList = buildListWithHeaders(filteredFiles)
-        fileAdapter.submitList(finalList)
-        updateUI(finalList.isEmpty())
+        withContext(Dispatchers.Main) {
+            fileAdapter.submitList(finalList)
+            updateUI(finalList.isEmpty())
+        }
     }
 
     private suspend fun readFilesFromDisk(): List<ArchivedFile> {
@@ -296,10 +240,11 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             val savedFiles = mutableListOf<ArchivedFile>()
             if (archiveDir.exists() && archiveDir.isDirectory) {
                 archiveDir.listFiles()?.filter { it.isFile }?.forEach { file ->
+                    val categoryName = CategoryManager.getCategoryForFile(this@MainActivity, file.absolutePath)
+                        ?: CategoryManager.getDefaultCategoryNameByExtension(this@MainActivity, file.name)
                     val lastModifiedDate = Date(file.lastModified())
                     val formattedDate = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault()).format(lastModifiedDate)
-                    val categoryResId = getFileCategoryResId(file.name)
-                    savedFiles.add(ArchivedFile(file.name, file.absolutePath, formattedDate, categoryResId, file.length()))
+                    savedFiles.add(ArchivedFile(file.name, file.absolutePath, formattedDate, categoryName, file.length()))
                 }
             }
             savedFiles
@@ -307,26 +252,23 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     }
 
     private fun buildListWithHeaders(files: List<ArchivedFile>): List<ListItem> {
+        if (files.isEmpty()) return emptyList()
         val listWithHeaders = mutableListOf<ListItem>()
-        if (files.isEmpty()) return listWithHeaders
+        val groupedByCategory = files.groupBy { it.category }
 
-        var currentCategoryResId = files.first().categoryResId
-        listWithHeaders.add(ListItem.HeaderItem(getString(currentCategoryResId)))
-
-        files.forEach { file ->
-            if (file.categoryResId != currentCategoryResId) {
-                currentCategoryResId = file.categoryResId
-                listWithHeaders.add(ListItem.HeaderItem(getString(currentCategoryResId)))
+        // Sıralı kategorilere göre başlıkları ve dosyaları ekle
+        val categoryOrder = CategoryManager.getCategories(this).sorted()
+        categoryOrder.forEach { categoryName ->
+            groupedByCategory[categoryName]?.let { filesInCategory ->
+                listWithHeaders.add(ListItem.HeaderItem(categoryName))
+                listWithHeaders.addAll(filesInCategory.map { ListItem.FileItem(it) })
             }
-            listWithHeaders.add(ListItem.FileItem(file))
         }
         return listWithHeaders
     }
 
     override fun onQueryTextChange(newText: String?): Boolean {
-        lifecycleScope.launch {
-            updateFullList()
-        }
+        lifecycleScope.launch { updateFullList() }
         return true
     }
 
@@ -348,9 +290,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
                 true
             }
         )
-
         fileAdapter.viewMode = currentViewMode
-
         setupLayoutManager()
     }
 
@@ -367,8 +307,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
         mode.menuInflater.inflate(R.menu.contextual_action_menu, menu)
-        // Üst barı gizleyen kod kaldırıldı.
-        // binding.appBarLayout.isVisible = false
         return true
     }
 
@@ -405,7 +343,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     override fun onDestroyActionMode(mode: ActionMode) {
         fileAdapter.clearSelections()
         actionMode = null
-        binding.appBarLayout.isVisible = true
     }
 
     private fun showMultiDeleteConfirmationDialog(filesToDelete: List<ArchivedFile>) {
@@ -475,6 +412,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         var deletedCount = 0
         withContext(Dispatchers.IO) {
             files.forEach {
+                CategoryManager.removeCategoryForFile(applicationContext, it.filePath)
                 FileHashManager.removeHashForFile(applicationContext, it.fileName)
                 val fileToDelete = File(it.filePath)
                 if (fileToDelete.exists() && fileToDelete.delete()) {
@@ -482,25 +420,9 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
                 }
             }
         }
-        val message = if (deletedCount == 1) {
-            getString(R.string.file_deleted_toast)
-        } else {
-            getString(R.string.files_deleted_toast, deletedCount)
-        }
+        val message = if (deletedCount == 1) getString(R.string.file_deleted_toast) else getString(R.string.files_deleted_toast, deletedCount)
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         updateFullList()
-    }
-
-    @StringRes
-    private fun getFileCategoryResId(fileName: String): Int {
-        return when (fileName.substringAfterLast('.', "").lowercase()) {
-            "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "txt" -> R.string.category_office
-            "jpg", "jpeg", "png", "webp", "gif", "bmp" -> R.string.category_images
-            "mp4", "mkv", "avi", "mov", "3gp", "webm" -> R.string.category_videos
-            "mp3", "wav", "m4a", "aac", "flac", "ogg" -> R.string.category_audio
-            "zip", "rar", "7z", "tar", "gz" -> R.string.category_archives
-            else -> R.string.category_other
-        }
     }
 
     override fun onQueryTextSubmit(query: String?): Boolean = false
@@ -529,13 +451,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         }
     }
 
-    // --- YENİ EKLENEN FONKSİYON ---
-
-    /**
-     * Kuyruktaki bir sonraki dosyayı işler.
-     * Kuyruk boş değilse, ilk URI'yi alır ve isimlendirilip kaydedilmesi için
-     * SaveFileActivity'yi başlatır.
-     */
     private fun processNextUriInQueue() {
         if (fileUrisToProcess.isNotEmpty()) {
             val uriToProcess = fileUrisToProcess.removeFirst()

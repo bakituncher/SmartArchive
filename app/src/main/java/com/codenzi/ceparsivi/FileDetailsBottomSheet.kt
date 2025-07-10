@@ -49,9 +49,8 @@ class FileDetailsBottomSheet : BottomSheetDialogFragment() {
 
         archivedFile?.let { file ->
             binding.textViewFileNameDetails.text = file.fileName
-
-
-            binding.textViewCategory.text = getString(R.string.details_category, getString(file.categoryResId))
+            // Değişiklik: Kategori artık doğrudan String olarak alınıyor.
+            binding.textViewCategory.text = getString(R.string.details_category, file.category)
             binding.textViewDate.text = getString(R.string.details_date, file.dateAdded)
             binding.textViewSize.text = getString(R.string.details_size, formatBytes(file.size))
 
@@ -59,7 +58,6 @@ class FileDetailsBottomSheet : BottomSheetDialogFragment() {
                 listener?.onShareClicked(file)
                 dismiss()
             }
-
             binding.buttonDelete.setOnClickListener {
                 listener?.onDeleteClicked(file)
                 dismiss()
