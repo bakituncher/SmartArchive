@@ -204,6 +204,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     private suspend fun updateFullList() {
         val allFiles = readFilesFromDisk()
+        // İkincil sıralama kriterini belirle
         val secondaryComparator = when (currentSortOrder) {
             SortOrder.NAME_ASC -> compareBy { it.fileName.lowercase() }
             SortOrder.NAME_DESC -> compareByDescending { it.fileName.lowercase() }
@@ -212,12 +213,14 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             SortOrder.DATE_DESC -> compareByDescending<ArchivedFile> { File(it.filePath).lastModified() }
         }
 
-        // Kategori sıralaması için sabit bir liste kullan
+        // DÜZELTME: Kategori sıralama mantığı iyileştirildi.
+        // Bilinmeyen veya hatalı kategoriler artık listenin başına gelmeyecek.
         val categoryOrder = CategoryManager.getCategories(this).sorted()
-
         val sortedFiles = allFiles.sortedWith(
-            compareBy<ArchivedFile> { categoryOrder.indexOf(it.category) }
-                .then(secondaryComparator)
+            compareBy<ArchivedFile> {
+                val index = categoryOrder.indexOf(it.category)
+                if (index == -1) Int.MAX_VALUE else index // Bilinmeyen kategorileri sona at
+            }.then(secondaryComparator)
         )
 
         val query = (binding.toolbar.menu.findItem(R.id.action_search)?.actionView as? SearchView)?.query?.toString()
@@ -260,8 +263,10 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         val categoryOrder = CategoryManager.getCategories(this).sorted()
         categoryOrder.forEach { categoryName ->
             groupedByCategory[categoryName]?.let { filesInCategory ->
-                listWithHeaders.add(ListItem.HeaderItem(categoryName))
-                listWithHeaders.addAll(filesInCategory.map { ListItem.FileItem(it) })
+                if (filesInCategory.isNotEmpty()){
+                    listWithHeaders.add(ListItem.HeaderItem(categoryName))
+                    listWithHeaders.addAll(filesInCategory.map { ListItem.FileItem(it) })
+                }
             }
         }
         return listWithHeaders

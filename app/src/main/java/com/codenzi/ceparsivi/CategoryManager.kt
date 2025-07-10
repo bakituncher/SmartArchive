@@ -27,8 +27,6 @@ object CategoryManager {
 
     /**
      * Varsayılan kategorileri döndürür.
-     * DÜZELTME: Görünürlük 'private' yerine 'internal' yapıldı.
-     * Bu sayede sadece uygulama modülü içinden erişilebilir.
      */
     internal fun getDefaultCategories(context: Context): Set<String> {
         return setOf(
@@ -43,11 +41,15 @@ object CategoryManager {
 
     /**
      * Kullanıcı tanımlı ve varsayılan tüm kategorileri bir set olarak döndürür.
-     * Eğer hiç kategori kaydedilmemişse, varsayılanları kaydeder ve döndürür.
+     * DÜZELTME: SharedPreferences'ten dönen orijinal setin değiştirilmemesi için
+     * her zaman yeni bir kopya oluşturulup döndürülüyor. Bu, veri kaybı sorununu çözer.
      */
     fun getCategories(context: Context): MutableSet<String> {
         val prefs = getCategoryPrefs(context)
-        return prefs.getStringSet(KEY_CATEGORY_SET, null) ?: run {
+        val savedSet = prefs.getStringSet(KEY_CATEGORY_SET, null)
+        return if (savedSet != null) {
+            HashSet(savedSet) // Orijinal set yerine kopyasını döndür
+        } else {
             val defaultCategories = getDefaultCategories(context)
             prefs.edit { putStringSet(KEY_CATEGORY_SET, defaultCategories) }
             defaultCategories.toMutableSet()
