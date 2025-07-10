@@ -22,7 +22,7 @@
 
     <TextView
         android:id="@+id/textViewTheme"
-        style="@style/TextAppearance.AppCompat.Medium"
+        style="@style/TextAppearance.Material3.BodyLarge"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="?attr/selectableItemBackground"
@@ -30,7 +30,9 @@
         android:focusable="true"
         android:gravity="center_vertical"
         android:padding="16dp"
-        android:text="@string/app_theme" />
+        android:text="@string/app_theme"
+        app:drawableStartCompat="@drawable/ic_palette"
+        android:drawablePadding="16dp" />
 
     <View
         android:layout_width="match_parent"
@@ -40,7 +42,7 @@
 
     <TextView
         android:id="@+id/textViewManageCategories"
-        style="@style/TextAppearance.AppCompat.Medium"
+        style="@style/TextAppearance.Material3.BodyLarge"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="?attr/selectableItemBackground"
@@ -48,7 +50,9 @@
         android:focusable="true"
         android:gravity="center_vertical"
         android:padding="16dp"
-        android:text="@string/manage_categories" />
+        android:text="@string/manage_categories"
+        app:drawableStartCompat="@drawable/ic_sort"
+        android:drawablePadding="16dp"/>
 
     <View
         android:layout_width="match_parent"
@@ -58,7 +62,7 @@
 
     <TextView
         android:id="@+id/textViewPrivacyPolicy"
-        style="@style/TextAppearance.AppCompat.Medium"
+        style="@style/TextAppearance.Material3.BodyLarge"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="?attr/selectableItemBackground"
@@ -66,6 +70,8 @@
         android:focusable="true"
         android:gravity="center_vertical"
         android:padding="16dp"
-        android:text="@string/action_privacy_policy" />
+        android:text="@string/action_privacy_policy"
+        app:drawableStartCompat="@drawable/ic_info"
+        android:drawablePadding="16dp"/>
 
 </LinearLayout>
