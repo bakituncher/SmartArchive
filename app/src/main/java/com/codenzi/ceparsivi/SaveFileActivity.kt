@@ -10,9 +10,8 @@ import android.os.Bundle
 import android.provider.OpenableColumns
 import android.util.Log
 import android.view.LayoutInflater
-import android.view.View
-import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.Toast
@@ -29,13 +28,14 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 
-// DialogFragment'tan gelen sonucu dinlemek için listener arayüzünü implement ediyoruz.
 class SaveFileActivity : AppCompatActivity(), CategoryEntryDialogFragment.CategoryDialogListener {
 
     private lateinit var progressBar: ProgressBar
     private lateinit var binding: DialogSaveFileBinding
     private lateinit var categoryAdapter: ArrayAdapter<String>
+
     private lateinit var addNewCategoryString: String
+    private lateinit var selectCategoryString: String
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,18 +56,11 @@ class SaveFileActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         }
     }
 
-    // DialogFragment'tan gelen sonucu burada işliyoruz.
     override fun onCategorySaved(newName: String, oldName: String?) {
         if (CategoryManager.addCategory(this, newName)) {
-            // Spinner'ı yeni eklenen kategori ile güncelle
-            val categories = CategoryManager.getCategories(this).toMutableList()
-            categories.sort()
-            categories.add(addNewCategoryString)
-            categoryAdapter.clear()
-            categoryAdapter.addAll(categories)
-            categoryAdapter.notifyDataSetChanged()
-            // Yeni eklenen kategoriyi seçili hale getir
-            binding.spinnerCategory.setSelection(categories.indexOf(newName))
+            updateCategoryDropdown()
+            // DÜZELTME: Yeni eklenen kategoriyi seçili hale getir.
+            binding.autoCompleteCategory.setText(newName, false)
         } else {
             Toast.makeText(this, getString(R.string.category_already_exists), Toast.LENGTH_SHORT).show()
         }
@@ -82,7 +75,7 @@ class SaveFileActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         binding.editTextFileName.setText(fileNameWithoutExtension)
         binding.textViewExtension.text = if (fileExtension.isNotEmpty()) ".$fileExtension" else ""
 
-        setupCategorySpinner(fileUri)
+        setupCategoryDropdown(fileUri)
         setupPreview(binding, fileUri, fileExtension)
 
         val dialog = AlertDialog.Builder(this)
@@ -95,55 +88,70 @@ class SaveFileActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val newBaseName = binding.editTextFileName.text.toString().trim()
-                val selectedCategory = binding.spinnerCategory.selectedItem.toString()
+                // DÜZELTME: Seçili metin AutoCompleteTextView'dan alınıyor.
+                val selectedItem = binding.autoCompleteCategory.text.toString()
+                val finalCategory: String
 
                 if (newBaseName.isBlank()) {
-                    Toast.makeText(this, getString(R.string.error_invalid_name), Toast.LENGTH_SHORT).show()
+                    binding.textInputLayout.error = getString(R.string.error_invalid_name)
                     return@setOnClickListener
+                } else {
+                    binding.textInputLayout.error = null
                 }
-                if (selectedCategory == addNewCategoryString) {
-                    Toast.makeText(this, getString(R.string.please_select_or_create_category), Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
+
+                if (selectedItem.isBlank() || selectedItem == selectCategoryString) {
+                    finalCategory = CategoryManager.getDefaultCategoryNameByExtension(this, originalFileName)
+                    Toast.makeText(this, "Kategori otomatik atandı: $finalCategory", Toast.LENGTH_LONG).show()
+                } else {
+                    finalCategory = selectedItem
                 }
 
                 val newName = if (fileExtension.isNotEmpty()) "$newBaseName.$fileExtension" else newBaseName
                 dialog.dismiss()
-                processSaveRequest(fileUri, newName, selectedCategory)
+                processSaveRequest(fileUri, newName, finalCategory)
             }
         }
         dialog.show()
     }
 
-    private fun setupCategorySpinner(fileUri: Uri) {
+    private fun setupCategoryDropdown(fileUri: Uri) {
         addNewCategoryString = getString(R.string.add_new_category_spinner)
-        val categories = CategoryManager.getCategories(this).toMutableList()
-        categories.sort()
-        categories.add(addNewCategoryString)
+        selectCategoryString = getString(R.string.select_a_category)
 
-        categoryAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, categories).also {
-            it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        }
-        binding.spinnerCategory.adapter = categoryAdapter
+        // DÜZELTME: ArrayAdapter artık AutoCompleteTextView ile kullanılıyor.
+        categoryAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, mutableListOf<String>())
+        binding.autoCompleteCategory.setAdapter(categoryAdapter)
 
-        val defaultCategory = CategoryManager.getDefaultCategoryNameByExtension(this, getFileName(fileUri))
-        val defaultSelection = categories.indexOf(defaultCategory)
-        if (defaultSelection >= 0) {
-            binding.spinnerCategory.setSelection(defaultSelection)
-        }
+        updateCategoryDropdown()
 
-        binding.spinnerCategory.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (parent?.getItemAtPosition(position).toString() == addNewCategoryString) {
-                    // Güvenli DialogFragment'ı göster
-                    val dialog = CategoryEntryDialogFragment.newInstance(null)
-                    dialog.listener = this@SaveFileActivity
-                    dialog.show(supportFragmentManager, "CategoryEntryDialog")
-                }
+        // DÜZELTME: Yeni kategori ekleme mantığı OnItemClickListener ile yönetiliyor.
+        binding.autoCompleteCategory.setOnItemClickListener { parent, _, position, _ ->
+            val selected = parent.getItemAtPosition(position).toString()
+            if (selected == addNewCategoryString) {
+                val dialog = CategoryEntryDialogFragment.newInstance(null)
+                dialog.listener = this@SaveFileActivity
+                dialog.show(supportFragmentManager, "CategoryEntryDialog")
+                // Kullanıcı seçimden vazgeçerse diye metni temizle.
+                binding.autoCompleteCategory.setText("", false)
             }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
     }
 
+    private fun updateCategoryDropdown() {
+        val allCategories = CategoryManager.getCategories(this)
+        val defaultCategories = CategoryManager.getDefaultCategories(this)
+        val userCategories = allCategories.filter { !defaultCategories.contains(it) }.sorted()
+
+        val dropdownList = mutableListOf(selectCategoryString)
+        dropdownList.addAll(userCategories)
+        dropdownList.add(addNewCategoryString)
+
+        categoryAdapter.clear()
+        categoryAdapter.addAll(dropdownList)
+        categoryAdapter.notifyDataSetChanged()
+    }
+
+    // ... (Geri kalan fonksiyonlar aynı, değişiklik yapmaya gerek yok)
     private fun processSaveRequest(uri: Uri, newName: String, category: String) {
         lifecycleScope.launch {
             progressBar.isVisible = true
@@ -197,11 +205,13 @@ class SaveFileActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
                 imageViewPreview.scaleType = ImageView.ScaleType.CENTER_CROP
                 Glide.with(this).load(uri).into(imageViewPreview)
             }
+
             mimeType.startsWith("video/") -> {
                 imageViewPreview.isVisible = true
                 imageViewPreview.scaleType = ImageView.ScaleType.CENTER_CROP
                 Glide.with(this).load(uri).placeholder(R.drawable.ic_file_video).into(imageViewPreview)
             }
+
             extension.equals("pdf", ignoreCase = true) -> {
                 imageViewPreview.isVisible = true
                 lifecycleScope.launch {
@@ -213,10 +223,11 @@ class SaveFileActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
                     }
                 }
             }
+
             else -> {
                 imageViewPreview.isVisible = true
-                val categoryName = CategoryManager.getDefaultCategoryNameByExtension(this, getFileName(uri))
-                imageViewPreview.setImageResource(getIconForCategory(categoryName, extension))
+                val defaultCategory = CategoryManager.getDefaultCategoryNameByExtension(this, getFileName(uri))
+                imageViewPreview.setImageResource(getIconForDefaultCategory(defaultCategory, extension))
             }
         }
     }
@@ -270,7 +281,7 @@ class SaveFileActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         finish()
     }
 
-    private fun getIconForCategory(categoryName: String, fileName: String): Int {
+    private fun getIconForDefaultCategory(categoryName: String, fileName: String): Int {
         val extension = fileName.substringAfterLast('.', "").lowercase()
         if (categoryName == getString(R.string.category_office)) {
             return when (extension) {

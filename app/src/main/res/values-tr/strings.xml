@@ -80,6 +80,8 @@
     <string name="delete_category_confirmation_message">Bu kategori kalıcı olarak silinecektir. Bu işlem geri alınamaz.</string>
     <string name="please_select_or_create_category">Lütfen bir kategori seçin veya oluşturun.</string>
     <string name="category_name_hint">Kategori Adı</string>
+    <string name="select_a_category">Bir kategori seçin...</string>
+    <string name="category_selection_info">Kategori seçilmezse, dosyaya uygun bir kategori otomatik atanacaktır.</string>
 
 
 </resources>
