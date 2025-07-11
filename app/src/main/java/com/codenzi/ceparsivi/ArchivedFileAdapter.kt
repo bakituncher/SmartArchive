@@ -25,6 +25,7 @@ import com.bumptech.glide.Glide
 import com.codenzi.ceparsivi.databinding.ItemFileBinding
 import com.codenzi.ceparsivi.databinding.ItemFileGridBinding
 import com.codenzi.ceparsivi.databinding.ItemHeaderBinding
+import com.google.android.material.card.MaterialCardView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -61,11 +62,14 @@ class ArchivedFileAdapter(
         super.onViewRecycled(holder)
         if (holder is GridViewHolder) {
             holder.cancelJob()
+            // Glide'ın olası bekleyen isteklerini temizle
+            Glide.with(holder.itemView.context).clear(holder.getImageView())
         }
     }
 
     override fun getItemViewType(position: Int): Int {
         if (position < 0 || position >= itemCount) {
+            // Güvenlik kontrolü, geçersiz pozisyonlar için varsayılan bir değer döndür
             return VIEW_TYPE_FILE_LIST
         }
         return when (getItem(position)) {
@@ -117,8 +121,17 @@ class ArchivedFileAdapter(
             binding.textViewFileName.text = file.fileName
             binding.textViewFileDate.text = file.dateAdded
             binding.imageViewFileType.setImageResource(getIconForFile(file.fileName))
-            // HATA DÜZELTİLDİ: Yeni seçim rengi kullanıldı
-            binding.root.setBackgroundColor(if (isSelected) ContextCompat.getColor(itemView.context, R.color.selection_color) else Color.TRANSPARENT)
+
+            // **MODERN GÖRSEL DOKUNUŞ:** Arka plan yerine kart kenarlığını (stroke) vurgula
+            val card = binding.root as MaterialCardView
+            if (isSelected) {
+                card.strokeColor = ContextCompat.getColor(itemView.context, R.color.primary)
+                card.strokeWidth = (2 * itemView.context.resources.displayMetrics.density).toInt() // 2dp
+            } else {
+                card.strokeColor = ContextCompat.getColor(itemView.context, R.color.outline_variant)
+                card.strokeWidth = (1 * itemView.context.resources.displayMetrics.density).toInt() // 1dp
+            }
+
             itemView.setOnClickListener { onClick(file) }
             itemView.setOnLongClickListener { onLongClick(file) }
         }
@@ -126,6 +139,7 @@ class ArchivedFileAdapter(
 
     inner class GridViewHolder(private val binding: ItemFileGridBinding) : RecyclerView.ViewHolder(binding.root) {
         private var thumbnailJob: Job? = null
+        fun getImageView(): ImageView = binding.imageViewFileTypeGrid
 
         fun cancelJob() {
             thumbnailJob?.cancel()
@@ -155,6 +169,9 @@ class ArchivedFileAdapter(
                     if (cachedBitmap != null) {
                         binding.imageViewFileTypeGrid.setImageBitmap(cachedBitmap)
                     } else {
+                        // Önce geçici bir ikon göster, sonra önizlemeyi yükle
+                        binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_INSIDE
+                        binding.imageViewFileTypeGrid.setImageResource(R.drawable.ic_file_pdf)
                         thumbnailJob = generatePdfPreview(file)
                     }
                 }
@@ -163,10 +180,16 @@ class ArchivedFileAdapter(
                 }
             }
 
-            // HATA DÜZELTİLDİ: Yeni ana renk kullanıldı
-            val strokeColorInt = ContextCompat.getColor(itemView.context, R.color.primary)
-            binding.root.strokeWidth = if (isSelected) 8 else 0
-            binding.root.strokeColor = if (isSelected) strokeColorInt else Color.TRANSPARENT
+            // **MODERN GÖRSEL DOKUNUŞ:** Izgara görünümünde seçimi belirgin ve şık bir kenarlıkla yap
+            val card = binding.root as MaterialCardView
+            if (isSelected) {
+                // Koyu temada daha iyi görünen bir renk seçilebilir (ör: inverse_primary)
+                card.strokeColor = ContextCompat.getColor(itemView.context, R.color.primary)
+                card.strokeWidth = (3 * itemView.context.resources.displayMetrics.density).toInt() // 3dp
+            } else {
+                card.strokeWidth = 0
+                card.strokeColor = Color.TRANSPARENT
+            }
 
             itemView.setOnClickListener { onClick(file) }
             itemView.setOnLongClickListener { onLongClick(file) }
@@ -174,24 +197,23 @@ class ArchivedFileAdapter(
 
         private fun setGenericIcon(file: ArchivedFile) {
             val typedValue = TypedValue()
-            itemView.context.theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, typedValue, true)
+            // colorOnSurfaceVariant yerine colorPrimary kullanmak daha canlı bir ikon rengi verir.
+            itemView.context.theme.resolveAttribute(com.google.android.material.R.attr.colorPrimary, typedValue, true)
             binding.imageViewFileTypeGrid.imageTintList = ColorStateList.valueOf(typedValue.data)
             binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_INSIDE
             binding.imageViewFileTypeGrid.setImageResource(getIconForFile(file.fileName))
         }
 
         private fun generatePdfPreview(file: ArchivedFile): Job? {
-            binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_INSIDE
-            binding.imageViewFileTypeGrid.setImageResource(R.drawable.ic_file_pdf)
-
             return (itemView.context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
                 try {
                     val fileDescriptor = ParcelFileDescriptor.open(File(file.filePath), ParcelFileDescriptor.MODE_READ_ONLY)
                     val renderer = PdfRenderer(fileDescriptor)
                     val page = renderer.openPage(0)
 
+                    // Önizleme kalitesini artırmak için hedef genişliği büyütüyoruz
                     val displayMetrics = itemView.context.resources.displayMetrics
-                    val targetWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 100f, displayMetrics).toInt()
+                    val targetWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 140f, displayMetrics).toInt()
                     val scale = targetWidth.toFloat() / page.width
                     val targetHeight = (page.height * scale).toInt()
 
@@ -212,6 +234,7 @@ class ArchivedFileAdapter(
                     fileDescriptor.close()
 
                     withContext(Dispatchers.Main) {
+                        // Adapter pozisyonu hala geçerliyse bitmap'i ata
                         if (bindingAdapterPosition != RecyclerView.NO_POSITION) {
                             binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_CROP
                             binding.imageViewFileTypeGrid.imageTintList = null
@@ -242,6 +265,7 @@ class ArchivedFileAdapter(
         } else {
             selectedItems.add(filePath)
         }
+        // Tüm listeyi taramak yerine sadece etkilenen öğeyi bul ve güncelle
         val index = currentList.indexOfFirst { it is ListItem.FileItem && it.archivedFile.filePath == filePath }
         if (index != -1) {
             notifyItemChanged(index)
@@ -257,6 +281,7 @@ class ArchivedFileAdapter(
     }
 
     fun clearSelections() {
+        // Seçim modundan çıkarken sadece seçili olan elemanları güncelle
         val positionsToUpdate = mutableListOf<Int>()
         selectedItems.forEach { filePath ->
             val index = currentList.indexOfFirst { it is ListItem.FileItem && it.archivedFile.filePath == filePath }
@@ -270,6 +295,7 @@ class ArchivedFileAdapter(
     }
 }
 
+// DiffUtil.ItemCallback içeriği aynı, değişikliğe gerek yok.
 class ListItemDiffCallback : DiffUtil.ItemCallback<ListItem>() {
     override fun areItemsTheSame(oldItem: ListItem, newItem: ListItem): Boolean {
         return when {

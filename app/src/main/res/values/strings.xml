@@ -90,4 +90,8 @@
     <string name="option_record_video">Record Video</string>
     <string name="option_from_local_files">Choose from Files</string>
 
+
+    <string name="settings_category_general">General</string>
+    <string name="settings_category_about">About</string>
+
 </resources>

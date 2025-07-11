@@ -9,8 +9,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
-import android.view.View
-import android.view.animation.DecelerateInterpolator
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -47,13 +45,13 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     private var actionMode: ActionMode? = null
     private var currentSortOrder = SortOrder.DATE_DESC
     private var currentViewMode = ViewMode.LIST
-    private var isFabMenuOpen = false
 
     private val keyViewMode = "key_view_mode"
     private var activeTheme: String? = null
     private val fileUrisToProcess = ArrayDeque<Uri>()
 
     private var latestTmpUri: Uri? = null
+
     private var pendingCameraAction: (() -> Unit)? = null
 
     private enum class SortOrder {
@@ -118,67 +116,45 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         }
 
         if (savedInstanceState != null) {
-            currentViewMode = ViewMode.valueOf(savedInstanceState.getString(keyViewMode, ViewMode.LIST.name))
+            val savedViewModeName = savedInstanceState.getString(keyViewMode)
+            if (savedViewModeName != null) {
+                currentViewMode = try {
+                    ViewMode.valueOf(savedViewModeName)
+                } catch (_: IllegalArgumentException) {
+                    ViewMode.LIST
+                }
+            }
         }
 
         checkFirstLaunch()
         setSupportActionBar(binding.toolbar)
         setupRecyclerView()
-        setupFabMenu()
-    }
 
-    private fun setupFabMenu() {
+        // **HATA DÜZELTİLDİ:** Eski çoklu FAB mantığı yerine tek butona tıklama olayı eklendi.
         binding.buttonAddFile.setOnClickListener {
-            toggleFabMenu()
-        }
-
-        binding.fabTakePhoto.setOnClickListener {
-            checkCameraPermissionAndTakePhoto()
-            toggleFabMenu()
-        }
-        binding.fabRecordVideo.setOnClickListener {
-            checkCameraPermissionAndTakeVideo()
-            toggleFabMenu()
-        }
-        binding.fabFromFiles.setOnClickListener {
-            filePickerLauncher.launch(arrayOf("*/*"))
-            toggleFabMenu()
+            showAddOptionsDialog()
         }
     }
 
-    private fun toggleFabMenu() {
-        val fab = binding.buttonAddFile
-        val fabItems = listOf(
-            binding.fabFromFiles,
-            binding.fabTakePhoto,
-            binding.fabRecordVideo
-        )
-        val fabLabels = listOf(
-            binding.labelFromFiles,
-            binding.labelTakePhoto,
-            binding.labelRecordVideo
+    // **YENİ EKLENDİ:** Dosya ekleme seçeneklerini gösteren modern dialog.
+    private fun showAddOptionsDialog() {
+        val options = arrayOf(
+            getString(R.string.option_take_photo),
+            getString(R.string.option_record_video),
+            getString(R.string.option_from_local_files)
         )
 
-        isFabMenuOpen = !isFabMenuOpen
-
-        fab.animate().rotation(if (isFabMenuOpen) 45f else 0f).setDuration(300).start()
-
-        val targetAlpha = if (isFabMenuOpen) 1f else 0f
-        val targetTranslationY = if (isFabMenuOpen) 0f else 50f
-
-        (fabItems + fabLabels).forEach { view ->
-            if (isFabMenuOpen) view.visibility = View.VISIBLE
-            view.animate()
-                .alpha(targetAlpha)
-                .translationY(targetTranslationY)
-                .setDuration(300)
-                .withEndAction {
-                    if (!isFabMenuOpen) view.visibility = View.INVISIBLE
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.add_file_dialog_title))
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> checkCameraPermissionAndTakePhoto()
+                    1 -> checkCameraPermissionAndTakeVideo()
+                    2 -> filePickerLauncher.launch(arrayOf("*/*"))
                 }
-                .start()
-        }
+            }
+            .show()
     }
-
 
     private fun checkCameraPermissionAndTakePhoto() {
         when {
@@ -265,6 +241,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         super.onResume()
         val newTheme = ThemeManager.getTheme(this)
         if (activeTheme != null && activeTheme != newTheme) {
+            ThemeManager.applyTheme(newTheme)
             recreate()
             return
         }
@@ -319,6 +296,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             GridLayoutManager(this, 3).apply {
                 spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                     override fun getSpanSize(position: Int): Int {
+                        // Adapter'ın itemCount'undan büyük pozisyonları kontrol ederek çökmeyi önle
                         return if (fileAdapter.itemCount > position && position >= 0 && fileAdapter.getItemViewType(position) == ArchivedFileAdapter.VIEW_TYPE_HEADER) 3 else 1
                     }
                 }
@@ -455,11 +433,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
         mode.menuInflater.inflate(R.menu.contextual_action_menu, menu)
         fileAdapter.isSelectionMode = true
-        binding.toolbar.animate()
-            .alpha(0f)
-            .setDuration(200)
-            .setInterpolator(DecelerateInterpolator())
-            .start()
+        binding.toolbar.animate().alpha(0f).setDuration(200).start()
         return true
     }
 
@@ -502,11 +476,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     override fun onDestroyActionMode(mode: ActionMode) {
         fileAdapter.clearSelections()
         actionMode = null
-        binding.toolbar.animate()
-            .alpha(1f)
-            .setDuration(200)
-            .setInterpolator(DecelerateInterpolator())
-            .start()
+        binding.toolbar.animate().alpha(1f).setDuration(200).start()
     }
 
     private fun showMultiDeleteConfirmationDialog(filesToDelete: List<ArchivedFile>) {
