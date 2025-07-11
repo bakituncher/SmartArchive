@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.view.animation.DecelerateInterpolator
 import android.webkit.MimeTypeMap
 import android.widget.Toast
@@ -24,7 +25,6 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.forEach
 import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
@@ -47,13 +47,13 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     private var actionMode: ActionMode? = null
     private var currentSortOrder = SortOrder.DATE_DESC
     private var currentViewMode = ViewMode.LIST
+    private var isFabMenuOpen = false
 
     private val keyViewMode = "key_view_mode"
     private var activeTheme: String? = null
     private val fileUrisToProcess = ArrayDeque<Uri>()
 
     private var latestTmpUri: Uri? = null
-
     private var pendingCameraAction: (() -> Unit)? = null
 
     private enum class SortOrder {
@@ -112,50 +112,73 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             binding.appBarLayout.updatePadding(top = systemBars.top)
-            // KESİN ÇÖZÜM: RecyclerView'ın padding'i artık değişmiyor.
-            binding.recyclerViewFiles.setPadding(0,0,0, systemBars.bottom)
+            binding.recyclerViewFiles.setPadding(0, 0, 0, systemBars.bottom)
             view.updatePadding(left = systemBars.left, right = systemBars.right)
             insets
         }
 
         if (savedInstanceState != null) {
-            val savedViewModeName = savedInstanceState.getString(keyViewMode)
-            if (savedViewModeName != null) {
-                currentViewMode = try {
-                    ViewMode.valueOf(savedViewModeName)
-                } catch (_: IllegalArgumentException) {
-                    ViewMode.LIST
-                }
-            }
+            currentViewMode = ViewMode.valueOf(savedInstanceState.getString(keyViewMode, ViewMode.LIST.name))
         }
 
         checkFirstLaunch()
         setSupportActionBar(binding.toolbar)
         setupRecyclerView()
+        setupFabMenu()
+    }
 
+    private fun setupFabMenu() {
         binding.buttonAddFile.setOnClickListener {
-            showAddOptionsDialog()
+            toggleFabMenu()
+        }
+
+        binding.fabTakePhoto.setOnClickListener {
+            checkCameraPermissionAndTakePhoto()
+            toggleFabMenu()
+        }
+        binding.fabRecordVideo.setOnClickListener {
+            checkCameraPermissionAndTakeVideo()
+            toggleFabMenu()
+        }
+        binding.fabFromFiles.setOnClickListener {
+            filePickerLauncher.launch(arrayOf("*/*"))
+            toggleFabMenu()
         }
     }
 
-    private fun showAddOptionsDialog() {
-        val options = arrayOf(
-            getString(R.string.option_take_photo),
-            getString(R.string.option_record_video),
-            getString(R.string.option_from_local_files)
+    private fun toggleFabMenu() {
+        val fab = binding.buttonAddFile
+        val fabItems = listOf(
+            binding.fabFromFiles,
+            binding.fabTakePhoto,
+            binding.fabRecordVideo
+        )
+        val fabLabels = listOf(
+            binding.labelFromFiles,
+            binding.labelTakePhoto,
+            binding.labelRecordVideo
         )
 
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.add_file_dialog_title))
-            .setItems(options) { _, which ->
-                when (which) {
-                    0 -> checkCameraPermissionAndTakePhoto()
-                    1 -> checkCameraPermissionAndTakeVideo()
-                    2 -> filePickerLauncher.launch(arrayOf("*/*"))
+        isFabMenuOpen = !isFabMenuOpen
+
+        fab.animate().rotation(if (isFabMenuOpen) 45f else 0f).setDuration(300).start()
+
+        val targetAlpha = if (isFabMenuOpen) 1f else 0f
+        val targetTranslationY = if (isFabMenuOpen) 0f else 50f
+
+        (fabItems + fabLabels).forEach { view ->
+            if (isFabMenuOpen) view.visibility = View.VISIBLE
+            view.animate()
+                .alpha(targetAlpha)
+                .translationY(targetTranslationY)
+                .setDuration(300)
+                .withEndAction {
+                    if (!isFabMenuOpen) view.visibility = View.INVISIBLE
                 }
-            }
-            .show()
+                .start()
+        }
     }
+
 
     private fun checkCameraPermissionAndTakePhoto() {
         when {
@@ -242,7 +265,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         super.onResume()
         val newTheme = ThemeManager.getTheme(this)
         if (activeTheme != null && activeTheme != newTheme) {
-            ThemeManager.applyTheme(newTheme)
             recreate()
             return
         }
@@ -297,7 +319,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             GridLayoutManager(this, 3).apply {
                 spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                     override fun getSpanSize(position: Int): Int {
-                        return if (fileAdapter.itemCount > position && fileAdapter.getItemViewType(position) == ArchivedFileAdapter.VIEW_TYPE_HEADER) 3 else 1
+                        return if (fileAdapter.itemCount > position && position >= 0 && fileAdapter.getItemViewType(position) == ArchivedFileAdapter.VIEW_TYPE_HEADER) 3 else 1
                     }
                 }
             }
@@ -433,7 +455,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
         mode.menuInflater.inflate(R.menu.contextual_action_menu, menu)
         fileAdapter.isSelectionMode = true
-        // KESİN ÇÖZÜM: Toolbar'ın içeriğini animasyonla gizle
         binding.toolbar.animate()
             .alpha(0f)
             .setDuration(200)
@@ -481,7 +502,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     override fun onDestroyActionMode(mode: ActionMode) {
         fileAdapter.clearSelections()
         actionMode = null
-        // KESİN ÇÖZÜM: Toolbar'ın içeriğini animasyonla geri getir
         binding.toolbar.animate()
             .alpha(1f)
             .setDuration(200)

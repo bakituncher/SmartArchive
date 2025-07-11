@@ -1,14 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/textViewHeader"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:orientation="vertical"
     android:paddingStart="24dp"
-    android:paddingEnd="24dp"
     android:paddingTop="24dp"
-    android:paddingBottom="8dp"
-    android:textAppearance="?attr/textAppearanceTitleMedium"
-    android:textColor="?attr/colorPrimary"
-    android:background="?attr/colorSurfaceContainerLowest"
-    tools:text="Kategori Başlığı" />
+    android:paddingEnd="24dp"
+    android:paddingBottom="8dp">
+
+    <TextView xmlns:tools="http://schemas.android.com/tools"
+        android:id="@+id/textViewHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:textAppearance="?attr/textAppearanceLabelLarge"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        tools:text="Kategori Başlığı" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="?attr/colorOutlineVariant" />
+
+</LinearLayout>
