@@ -39,24 +39,26 @@
         android:gravity="center"
         android:orientation="vertical"
         android:visibility="gone"
+        android:padding="32dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/appBarLayout">
 
         <ImageView
-            android:layout_width="80dp"
-            android:layout_height="80dp"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
             android:contentDescription="@string/empty_view_icon_content_description"
             android:src="@drawable/ic_empty_box"
-            app:tint="?attr/colorOnSurfaceVariant" />
+            app:tint="@color/primary" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="24dp"
             android:text="@string/empty_view_title"
-            android:textSize="18sp"
+            android:textSize="20sp"
+            android:textStyle="bold"
             android:textColor="?attr/colorOnSurface" />
 
         <TextView
@@ -66,6 +68,7 @@
             android:paddingHorizontal="40dp"
             android:text="@string/empty_view_subtitle"
             android:textAlignment="center"
+            android:textSize="16sp"
             android:textColor="?attr/colorOnSurfaceVariant" />
     </LinearLayout>
 

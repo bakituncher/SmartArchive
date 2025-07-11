@@ -1,23 +1,21 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Temel Materyal 3 Teması -->
     <style name="Base.Theme.CepArsivi" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/purple_500</item>
-        <item name="colorPrimaryVariant">@color/purple_700</item>
-        <item name="colorOnPrimary">@color/white</item>
-        <item name="colorSecondary">@color/teal_200</item>
-        <item name="colorSecondaryVariant">@color/teal_700</item>
-        <item name="colorOnSecondary">@color/black</item>
-        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryVariant">@color/primary_dark</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="colorSecondary">@color/accent</item>
+        <item name="colorOnSecondary">@color/on_secondary</item>
+        <item name="android:colorBackground">@color/background</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnBackground">@color/on_background</item>
+        <item name="colorOnSurface">@color/on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/on_surface_variant</item>
+        <item name="android:statusBarColor">@color/background</item>
         <item name="android:windowLightStatusBar" tools:targetApi="23">true</item>
     </style>
 
-    <!-- Ana Uygulama Teması -->
     <style name="Theme.CepArsivi" parent="Base.Theme.CepArsivi" />
 
-    <!--
-        DÜZELTME: Şeffaf temanın parent'ı, AppCompat yerine doğrudan Material3 teması yapıldı.
-        Bu, çökmenin ana nedenini ortadan kaldırır.
-    -->
     <style name="Theme.Transparent" parent="Theme.Material3.DayNight">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
@@ -27,13 +25,10 @@
         <item name="android:backgroundDimEnabled">true</item>
     </style>
 
-
-    <!-- Açılış Ekranı Teması -->
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenBackground">@color/background</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/codenzi</item>
         <item name="windowSplashScreenAnimationDuration">1000</item>
         <item name="postSplashScreenTheme">@style/Theme.CepArsivi</item>
     </style>
-
 </resources>
