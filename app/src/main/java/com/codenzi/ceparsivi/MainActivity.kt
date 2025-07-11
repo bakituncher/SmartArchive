@@ -22,7 +22,7 @@ import androidx.core.content.edit
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat // HATA DÜZELTİLDİ: Gerekli import eklendi
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
@@ -108,7 +108,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         setContentView(binding.root)
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
-            // HATA DÜZELTİLDİ: Doğru referans kullanıldı
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             binding.appBarLayout.updatePadding(top = systemBars.top)
             binding.recyclerViewFiles.updatePadding(bottom = systemBars.bottom)
@@ -140,7 +139,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         val options = arrayOf(
             getString(R.string.option_take_photo),
             getString(R.string.option_record_video),
-            // İsim değişikliği için strings.xml güncellendi
             getString(R.string.option_from_local_files)
         )
 
@@ -150,7 +148,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
                 when (which) {
                     0 -> checkCameraPermissionAndTakePhoto()
                     1 -> checkCameraPermissionAndTakeVideo()
-                    // DÜZELTİLDİ: Artık "*/*" ile tüm dosya türlerini açıyor
                     2 -> filePickerLauncher.launch(arrayOf("*/*"))
                 }
             }
@@ -433,6 +430,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
         mode.menuInflater.inflate(R.menu.contextual_action_menu, menu)
         fileAdapter.isSelectionMode = true
+        binding.appBarLayout.isVisible = false // *** YENİ EKLENEN SATIR ***
         return true
     }
 
@@ -440,6 +438,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         val selectedCount = fileAdapter.getSelectedFileCount()
         menu.findItem(R.id.action_details)?.isVisible = selectedCount == 1
         menu.findItem(R.id.action_share)?.isVisible = selectedCount > 0
+        menu.findItem(R.id.action_move)?.isVisible = selectedCount > 0
         return true
     }
 
@@ -452,6 +451,11 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             }
             R.id.action_share -> {
                 shareFiles(selectedFiles)
+                mode.finish()
+                true
+            }
+            R.id.action_move -> {
+                showCategorySelectionDialog(selectedFiles)
                 mode.finish()
                 true
             }
@@ -469,6 +473,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     override fun onDestroyActionMode(mode: ActionMode) {
         fileAdapter.clearSelections()
         actionMode = null
+        binding.appBarLayout.isVisible = true // *** YENİ EKLENEN SATIR ***
     }
 
     private fun showMultiDeleteConfirmationDialog(filesToDelete: List<ArchivedFile>) {
@@ -535,12 +540,15 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     }
 
     override fun onMoveClicked(file: ArchivedFile) {
-        showCategorySelectionDialog(file)
+        showCategorySelectionDialog(listOf(file))
     }
 
-    private fun showCategorySelectionDialog(fileToMove: ArchivedFile) {
+    private fun showCategorySelectionDialog(filesToMove: List<ArchivedFile>) {
+        if (filesToMove.isEmpty()) return
+
+        val currentCategories = filesToMove.map { it.category }.toSet()
         val categories = CategoryManager.getCategories(this)
-            .filter { it != fileToMove.category }
+            .filter { !currentCategories.contains(it) }
             .sorted()
             .toTypedArray()
 
@@ -554,8 +562,15 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             .setItems(categories) { dialog, which ->
                 val newCategory = categories[which]
                 lifecycleScope.launch {
-                    CategoryManager.setCategoryForFile(applicationContext, fileToMove.filePath, newCategory)
-                    Toast.makeText(applicationContext, getString(R.string.file_moved_to_category, newCategory), Toast.LENGTH_SHORT).show()
+                    filesToMove.forEach { file ->
+                        CategoryManager.setCategoryForFile(applicationContext, file.filePath, newCategory)
+                    }
+                    val message = if (filesToMove.size == 1) {
+                        getString(R.string.file_moved_to_category, newCategory)
+                    } else {
+                        "${filesToMove.size} dosya '$newCategory' kategorisine taşındı."
+                    }
+                    Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show()
                     updateFullList()
                 }
                 dialog.dismiss()
@@ -563,6 +578,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             .setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
+
 
     private suspend fun deleteFiles(files: List<ArchivedFile>) {
         var deletedCount = 0
