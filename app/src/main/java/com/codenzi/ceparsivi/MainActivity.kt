@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import android.view.animation.DecelerateInterpolator
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,6 +24,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.forEach
 import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
@@ -110,7 +112,8 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             binding.appBarLayout.updatePadding(top = systemBars.top)
-            binding.recyclerViewFiles.updatePadding(bottom = systemBars.bottom)
+            // KESİN ÇÖZÜM: RecyclerView'ın padding'i artık değişmiyor.
+            binding.recyclerViewFiles.setPadding(0,0,0, systemBars.bottom)
             view.updatePadding(left = systemBars.left, right = systemBars.right)
             insets
         }
@@ -430,7 +433,12 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
         mode.menuInflater.inflate(R.menu.contextual_action_menu, menu)
         fileAdapter.isSelectionMode = true
-        binding.appBarLayout.isVisible = false // *** YENİ EKLENEN SATIR ***
+        // KESİN ÇÖZÜM: Toolbar'ın içeriğini animasyonla gizle
+        binding.toolbar.animate()
+            .alpha(0f)
+            .setDuration(200)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
         return true
     }
 
@@ -473,7 +481,12 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     override fun onDestroyActionMode(mode: ActionMode) {
         fileAdapter.clearSelections()
         actionMode = null
-        binding.appBarLayout.isVisible = true // *** YENİ EKLENEN SATIR ***
+        // KESİN ÇÖZÜM: Toolbar'ın içeriğini animasyonla geri getir
+        binding.toolbar.animate()
+            .alpha(1f)
+            .setDuration(200)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
     }
 
     private fun showMultiDeleteConfirmationDialog(filesToDelete: List<ArchivedFile>) {
