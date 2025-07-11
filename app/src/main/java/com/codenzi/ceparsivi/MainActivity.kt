@@ -20,7 +20,11 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.content.edit
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat // HATA DÜZELTİLDİ: Gerekli import eklendi
 import androidx.core.view.isVisible
+import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -48,22 +52,19 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     private var latestTmpUri: Uri? = null
 
-    // YENİ EKLENDİ: Hangi kamera işleminin istendiğini tutmak için bir değişken
     private var pendingCameraAction: (() -> Unit)? = null
 
     private enum class SortOrder {
         DATE_DESC, NAME_ASC, NAME_DESC, SIZE_ASC, SIZE_DESC
     }
 
-    // YENİ EKLENDİ: Kamera izni istemek için launcher
     private val requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
         if (isGranted) {
-            // İzin verildiyse, bekleyen kamera işlemini çalıştır
             pendingCameraAction?.invoke()
         } else {
             Toast.makeText(this, "Kamera izni olmadan bu özellik kullanılamaz.", Toast.LENGTH_LONG).show()
         }
-        pendingCameraAction = null // Bekleyen işlemi temizle
+        pendingCameraAction = null
     }
 
     private val takeImageResult = registerForActivityResult(ActivityResultContracts.TakePicture()) { isSuccess ->
@@ -99,9 +100,21 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
         activeTheme = ThemeManager.getTheme(this)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
+            // HATA DÜZELTİLDİ: Doğru referans kullanıldı
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            binding.appBarLayout.updatePadding(top = systemBars.top)
+            binding.recyclerViewFiles.updatePadding(bottom = systemBars.bottom)
+            view.updatePadding(left = systemBars.left, right = systemBars.right)
+            insets
+        }
 
         if (savedInstanceState != null) {
             val savedViewModeName = savedInstanceState.getString(keyViewMode)
@@ -127,7 +140,8 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         val options = arrayOf(
             getString(R.string.option_take_photo),
             getString(R.string.option_record_video),
-            getString(R.string.option_from_gallery)
+            // İsim değişikliği için strings.xml güncellendi
+            getString(R.string.option_from_local_files)
         )
 
         AlertDialog.Builder(this)
@@ -136,35 +150,31 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
                 when (which) {
                     0 -> checkCameraPermissionAndTakePhoto()
                     1 -> checkCameraPermissionAndTakeVideo()
-                    // DÜZELTME: "Galeriden Seç" artık sadece resim ve videoları gösterecek şekilde filtrelendi.
-                    2 -> filePickerLauncher.launch(arrayOf("image/*", "video/*"))
+                    // DÜZELTİLDİ: Artık "*/*" ile tüm dosya türlerini açıyor
+                    2 -> filePickerLauncher.launch(arrayOf("*/*"))
                 }
             }
             .show()
     }
 
-    // YENİ EKLENDİ: Fotoğraf çekmeden önce kamera iznini kontrol eden fonksiyon
     private fun checkCameraPermissionAndTakePhoto() {
         when {
             ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED -> {
                 takeImage()
             }
             else -> {
-                // Bekleyen işlemi ayarla ve izin iste
                 pendingCameraAction = { takeImage() }
                 requestPermissionLauncher.launch(Manifest.permission.CAMERA)
             }
         }
     }
 
-    // YENİ EKLENDİ: Video kaydetmeden önce kamera iznini kontrol eden fonksiyon
     private fun checkCameraPermissionAndTakeVideo() {
         when {
             ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED -> {
                 takeVideo()
             }
             else -> {
-                // Bekleyen işlemi ayarla ve izin iste
                 pendingCameraAction = { takeVideo() }
                 requestPermissionLauncher.launch(Manifest.permission.CAMERA)
             }
@@ -208,8 +218,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         }
         saveActivityLauncher.launch(intent)
     }
-
-    // ... (MainActivity'nin geri kalan tüm fonksiyonları aynı kalacak, aşağıya eklenmiştir)
 
     private fun checkFirstLaunch() {
         val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
@@ -399,7 +407,10 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             },
             onItemLongClick = { file ->
                 if (!fileAdapter.isSelectionMode) {
-                    showFileDetails(file)
+                    if (actionMode == null) {
+                        actionMode = startSupportActionMode(this)
+                    }
+                    toggleSelection(file)
                 }
                 true
             }
@@ -421,6 +432,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
         mode.menuInflater.inflate(R.menu.contextual_action_menu, menu)
+        fileAdapter.isSelectionMode = true
         return true
     }
 

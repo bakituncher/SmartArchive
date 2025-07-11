@@ -88,7 +88,6 @@
     <string name="add_file_dialog_title">Add a New File</string>
     <string name="option_take_photo">Take Photo</string>
     <string name="option_record_video">Record Video</string>
-    <string name="option_from_gallery">Choose from Gallery</string>
-
+    <string name="option_from_local_files">Choose from Files</string>
 
 </resources>

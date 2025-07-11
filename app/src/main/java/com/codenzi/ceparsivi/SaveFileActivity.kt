@@ -30,17 +30,17 @@ import java.io.FileOutputStream
 
 class SaveFileActivity : AppCompatActivity(), CategoryEntryDialogFragment.CategoryDialogListener {
 
-    private lateinit var progressBar: ProgressBar
     private lateinit var binding: DialogSaveFileBinding
     private lateinit var categoryAdapter: ArrayAdapter<String>
 
     private lateinit var addNewCategoryString: String
     private lateinit var selectCategoryString: String
+    private var originalFileNameForCategory: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        progressBar = ProgressBar(this).apply { isVisible = false }
-        setContentView(progressBar)
+        binding = DialogSaveFileBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         val fileUri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
@@ -50,88 +50,77 @@ class SaveFileActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         }
 
         if (intent?.action == Intent.ACTION_SEND && fileUri != null) {
-            showSaveDialog(fileUri)
+            setupUI(fileUri)
         } else {
-            finishWithResult(Activity.RESULT_CANCELED)
+            Toast.makeText(this, R.string.file_not_received, Toast.LENGTH_SHORT).show()
+            finish()
         }
+    }
+
+    private fun setupUI(fileUri: Uri) {
+        originalFileNameForCategory = getFileName(fileUri)
+        val fileNameWithoutExtension = originalFileNameForCategory.substringBeforeLast('.', originalFileNameForCategory)
+        val fileExtension = originalFileNameForCategory.substringAfterLast('.', "")
+
+        binding.editTextFileName.setText(fileNameWithoutExtension)
+
+        setupCategoryDropdown()
+        setupPreview(binding, fileUri, fileExtension)
+        setupButtons(fileUri, fileExtension)
     }
 
     override fun onCategorySaved(newName: String, oldName: String?) {
         if (CategoryManager.addCategory(this, newName)) {
             updateCategoryDropdown()
-            // DÜZELTME: Yeni eklenen kategoriyi seçili hale getir.
             binding.autoCompleteCategory.setText(newName, false)
         } else {
             Toast.makeText(this, getString(R.string.category_already_exists), Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun showSaveDialog(fileUri: Uri) {
-        val originalFileName = getFileName(fileUri)
-        binding = DialogSaveFileBinding.inflate(LayoutInflater.from(this))
-        val fileNameWithoutExtension = originalFileName.substringBeforeLast('.', originalFileName)
-        val fileExtension = originalFileName.substringAfterLast('.', "")
-
-        binding.editTextFileName.setText(fileNameWithoutExtension)
-        binding.textViewExtension.text = if (fileExtension.isNotEmpty()) ".$fileExtension" else ""
-
-        setupCategoryDropdown(fileUri)
-        setupPreview(binding, fileUri, fileExtension)
-
-        val dialog = AlertDialog.Builder(this)
-            .setView(binding.root)
-            .setPositiveButton(getString(R.string.save), null)
-            .setNegativeButton(getString(R.string.cancel)) { _, _ -> finishWithResult(Activity.RESULT_CANCELED) }
-            .setOnCancelListener { finishWithResult(Activity.RESULT_CANCELED) }
-            .create()
-
-        dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val newBaseName = binding.editTextFileName.text.toString().trim()
-                // DÜZELTME: Seçili metin AutoCompleteTextView'dan alınıyor.
-                val selectedItem = binding.autoCompleteCategory.text.toString()
-                val finalCategory: String
-
-                if (newBaseName.isBlank()) {
-                    binding.textInputLayout.error = getString(R.string.error_invalid_name)
-                    return@setOnClickListener
-                } else {
-                    binding.textInputLayout.error = null
-                }
-
-                if (selectedItem.isBlank() || selectedItem == selectCategoryString) {
-                    finalCategory = CategoryManager.getDefaultCategoryNameByExtension(this, originalFileName)
-                    Toast.makeText(this, "Kategori otomatik atandı: $finalCategory", Toast.LENGTH_LONG).show()
-                } else {
-                    finalCategory = selectedItem
-                }
-
-                val newName = if (fileExtension.isNotEmpty()) "$newBaseName.$fileExtension" else newBaseName
-                dialog.dismiss()
-                processSaveRequest(fileUri, newName, finalCategory)
-            }
+    private fun setupButtons(fileUri: Uri, fileExtension: String) {
+        binding.buttonCancel.setOnClickListener {
+            finishWithResult(Activity.RESULT_CANCELED)
         }
-        dialog.show()
+
+        binding.buttonSave.setOnClickListener {
+            val newBaseName = binding.editTextFileName.text.toString().trim()
+            val selectedItem = binding.autoCompleteCategory.text.toString()
+            val finalCategory: String
+
+            if (newBaseName.isBlank()) {
+                binding.textInputLayout.error = getString(R.string.error_invalid_name)
+                return@setOnClickListener
+            } else {
+                binding.textInputLayout.error = null
+            }
+
+            finalCategory = if (selectedItem.isBlank() || selectedItem == selectCategoryString) {
+                CategoryManager.getDefaultCategoryNameByExtension(this, originalFileNameForCategory)
+            } else {
+                selectedItem
+            }
+
+            val newName = if (fileExtension.isNotEmpty()) "$newBaseName.$fileExtension" else newBaseName
+            processSaveRequest(fileUri, newName, finalCategory)
+        }
     }
 
-    private fun setupCategoryDropdown(fileUri: Uri) {
+    private fun setupCategoryDropdown() {
         addNewCategoryString = getString(R.string.add_new_category_spinner)
         selectCategoryString = getString(R.string.select_a_category)
 
-        // DÜZELTME: ArrayAdapter artık AutoCompleteTextView ile kullanılıyor.
         categoryAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, mutableListOf<String>())
         binding.autoCompleteCategory.setAdapter(categoryAdapter)
 
         updateCategoryDropdown()
 
-        // DÜZELTME: Yeni kategori ekleme mantığı OnItemClickListener ile yönetiliyor.
         binding.autoCompleteCategory.setOnItemClickListener { parent, _, position, _ ->
             val selected = parent.getItemAtPosition(position).toString()
             if (selected == addNewCategoryString) {
                 val dialog = CategoryEntryDialogFragment.newInstance(null)
                 dialog.listener = this@SaveFileActivity
                 dialog.show(supportFragmentManager, "CategoryEntryDialog")
-                // Kullanıcı seçimden vazgeçerse diye metni temizle.
                 binding.autoCompleteCategory.setText("", false)
             }
         }
@@ -151,26 +140,23 @@ class SaveFileActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         categoryAdapter.notifyDataSetChanged()
     }
 
-    // ... (Geri kalan fonksiyonlar aynı, değişiklik yapmaya gerek yok)
     private fun processSaveRequest(uri: Uri, newName: String, category: String) {
         lifecycleScope.launch {
-            progressBar.isVisible = true
+            // Butonları devre dışı bırak ve bir yükleme göstergesi göster
+            setButtonsEnabled(false)
+
             val hash = FileHashManager.calculateMD5(this@SaveFileActivity, uri)
             if (hash != null && FileHashManager.hashExists(this@SaveFileActivity, hash)) {
-                withContext(Dispatchers.Main) {
-                    val existingFileName = FileHashManager.getFileNameForHash(this@SaveFileActivity, hash) ?: newName
-                    Toast.makeText(this@SaveFileActivity, "Bu dosya zaten '$existingFileName' adıyla mevcut.", Toast.LENGTH_LONG).show()
-                    finishWithResult(Activity.RESULT_CANCELED)
-                }
+                val existingFileName = FileHashManager.getFileNameForHash(this@SaveFileActivity, hash) ?: newName
+                Toast.makeText(this@SaveFileActivity, "Bu dosya zaten '$existingFileName' adıyla mevcut.", Toast.LENGTH_LONG).show()
+                finishWithResult(Activity.RESULT_CANCELED)
                 return@launch
             }
 
             val outputFile = File(filesDir, "arsiv/$newName")
             if (outputFile.exists()) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@SaveFileActivity, "'$newName' adında bir dosya zaten var.", Toast.LENGTH_LONG).show()
-                    finishWithResult(Activity.RESULT_CANCELED)
-                }
+                Toast.makeText(this@SaveFileActivity, "'$newName' adında bir dosya zaten var.", Toast.LENGTH_LONG).show()
+                setButtonsEnabled(true)
                 return@launch
             }
 
@@ -178,42 +164,49 @@ class SaveFileActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         }
     }
 
+    private fun setButtonsEnabled(enabled: Boolean) {
+        binding.buttonSave.isEnabled = enabled
+        binding.buttonCancel.isEnabled = enabled
+    }
+
     private fun saveFileAndFinish(uri: Uri, newName: String, category: String, hash: String?) {
         lifecycleScope.launch {
             val success = copyFileToInternalStorage(uri, newName)
             withContext(Dispatchers.Main) {
-                progressBar.isVisible = false
                 if (success) {
                     val filePath = File(filesDir, "arsiv/$newName").absolutePath
                     hash?.let { FileHashManager.addHash(applicationContext, it, newName) }
                     CategoryManager.setCategoryForFile(applicationContext, filePath, category)
                     Toast.makeText(applicationContext, getString(R.string.file_saved_as, newName), Toast.LENGTH_LONG).show()
+                    finishWithResult(Activity.RESULT_OK)
                 } else {
                     Toast.makeText(applicationContext, getString(R.string.error_file_not_saved), Toast.LENGTH_LONG).show()
+                    setButtonsEnabled(true)
                 }
-                finishWithResult(Activity.RESULT_OK)
             }
         }
     }
 
     private fun setupPreview(binding: DialogSaveFileBinding, uri: Uri, extension: String) {
         val mimeType = contentResolver.getType(uri) ?: ""
+        val previewCard = binding.previewCard
         val imageViewPreview = binding.imageViewPreview
+
+        previewCard.isVisible = true // Kartı her zaman görünür yapalım
+
         when {
             mimeType.startsWith("image/") -> {
-                imageViewPreview.isVisible = true
                 imageViewPreview.scaleType = ImageView.ScaleType.CENTER_CROP
                 Glide.with(this).load(uri).into(imageViewPreview)
             }
 
             mimeType.startsWith("video/") -> {
-                imageViewPreview.isVisible = true
                 imageViewPreview.scaleType = ImageView.ScaleType.CENTER_CROP
                 Glide.with(this).load(uri).placeholder(R.drawable.ic_file_video).into(imageViewPreview)
             }
 
             extension.equals("pdf", ignoreCase = true) -> {
-                imageViewPreview.isVisible = true
+                imageViewPreview.scaleType = ImageView.ScaleType.FIT_CENTER
                 lifecycleScope.launch {
                     val bitmap = renderPdfThumbnail(uri)
                     if (bitmap != null) {
@@ -225,9 +218,9 @@ class SaveFileActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             }
 
             else -> {
-                imageViewPreview.isVisible = true
-                val defaultCategory = CategoryManager.getDefaultCategoryNameByExtension(this, getFileName(uri))
-                imageViewPreview.setImageResource(getIconForDefaultCategory(defaultCategory, extension))
+                imageViewPreview.scaleType = ImageView.ScaleType.CENTER_INSIDE
+                val iconRes = getIconForDefaultCategory(CategoryManager.getDefaultCategoryNameByExtension(this, getFileName(uri)), extension)
+                imageViewPreview.setImageResource(iconRes)
             }
         }
     }

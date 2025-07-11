@@ -99,10 +99,6 @@ class ArchivedFileAdapter(
         }
     }
 
-    /**
-     * DÜZELTME: Bu fonksiyon artık kategori adını yoksayarak, doğrudan dosya uzantısına göre
-     * doğru ikonu döndürür. Bu, özel kategorilerdeki ikon sorununu çözer.
-     */
     private fun getIconForFile(fileName: String): Int {
         val extension = fileName.substringAfterLast('.', "").lowercase()
         return when (extension) {
@@ -120,9 +116,9 @@ class ArchivedFileAdapter(
         fun bind(file: ArchivedFile, onClick: (ArchivedFile) -> Unit, onLongClick: (ArchivedFile) -> Boolean, isSelected: Boolean) {
             binding.textViewFileName.text = file.fileName
             binding.textViewFileDate.text = file.dateAdded
-            // DÜZELTME: İkon, kategoriye göre değil, dosya türüne göre belirleniyor.
             binding.imageViewFileType.setImageResource(getIconForFile(file.fileName))
-            binding.root.setBackgroundColor(if (isSelected) ContextCompat.getColor(itemView.context, R.color.purple_200) else Color.TRANSPARENT)
+            // HATA DÜZELTİLDİ: Yeni seçim rengi kullanıldı
+            binding.root.setBackgroundColor(if (isSelected) ContextCompat.getColor(itemView.context, R.color.selection_color) else Color.TRANSPARENT)
             itemView.setOnClickListener { onClick(file) }
             itemView.setOnLongClickListener { onLongClick(file) }
         }
@@ -143,8 +139,6 @@ class ArchivedFileAdapter(
             binding.imageViewFileTypeGrid.imageTintList = null
             binding.imageViewFileTypeGrid.scaleType = ImageView.ScaleType.CENTER_CROP
 
-            // DÜZELTME: Önizleme mantığı artık kategori adını değil, dosyanın MIME türünü veya uzantısını kontrol ediyor.
-            // Bu, özel kategorilerdeki önizleme sorununu çözer.
             val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.fileName.substringAfterLast('.', "")) ?: "*/*"
             val extension = file.fileName.substringAfterLast('.', "").lowercase()
 
@@ -169,7 +163,8 @@ class ArchivedFileAdapter(
                 }
             }
 
-            val strokeColorInt = ContextCompat.getColor(itemView.context, R.color.purple_500)
+            // HATA DÜZELTİLDİ: Yeni ana renk kullanıldı
+            val strokeColorInt = ContextCompat.getColor(itemView.context, R.color.primary)
             binding.root.strokeWidth = if (isSelected) 8 else 0
             binding.root.strokeColor = if (isSelected) strokeColorInt else Color.TRANSPARENT
 

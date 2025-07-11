@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-feature android:name="android.hardware.camera" android:required="true" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
         android:name=".CepArsiviApplication"
@@ -29,17 +29,17 @@
 
         <activity
             android:name=".SettingsActivity"
-            android:theme="@style/Theme.CepArsivi" />
+            android:theme="@style/Theme.CepArsivi"
+            android:parentActivityName=".MainActivity"/>
 
         <activity
             android:name=".SaveFileActivity"
             android:exported="true"
-            android:theme="@style/Theme.Transparent">
-            <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="*/*" />
-            </intent-filter>
+            android:theme="@style/Theme.CepArsivi.Transparent"> <intent-filter>
+            <action android:name="android.intent.action.SEND" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <data android:mimeType="*/*" />
+        </intent-filter>
         </activity>
 
         <provider

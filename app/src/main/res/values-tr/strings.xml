@@ -87,7 +87,6 @@
     <string name="add_file_dialog_title">Yeni Dosya Ekle</string>
     <string name="option_take_photo">Fotoğraf Çek</string>
     <string name="option_record_video">Video Kaydet</string>
-    <string name="option_from_gallery">Galeriden Seç</string>
-
+    <string name="option_from_local_files">Yerel Dosyalardan Seç</string>
 
 </resources>
