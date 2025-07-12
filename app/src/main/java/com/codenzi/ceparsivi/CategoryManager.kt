@@ -17,13 +17,48 @@ object CategoryManager {
     private const val PREFS_FILE_MAP = "FileCategoryMapping"
     private val gson = Gson()
 
-    // Kategori listesini yöneten SharedPreferences
-    private fun getCategoryPrefs(context: Context) =
-        context.getSharedPreferences(PREFS_CATEGORIES, Context.MODE_PRIVATE)
+    // YENİ EKLENDİ: Hafızadaki verileri temizlemek için bir anahtar
+    private var isInvalidated = true
+    private var categoriesCache: MutableSet<String>? = null
+    private var fileMapCache: Map<String, String>? = null
 
-    // Dosya-kategori haritasını yöneten SharedPreferences
-    private fun getFileMapPrefs(context: Context) =
-        context.getSharedPreferences(PREFS_FILE_MAP, Context.MODE_PRIVATE)
+    // YENİ EKLENDİ: Dışarıdan çağrılarak hafızayı temizleyecek fonksiyon
+    fun invalidate() {
+        isInvalidated = true
+        categoriesCache = null
+        fileMapCache = null
+    }
+
+    private fun loadCategoriesIfNeeded(context: Context) {
+        if (!isInvalidated && categoriesCache != null) return
+
+        val prefs = context.getSharedPreferences(PREFS_CATEGORIES, Context.MODE_PRIVATE)
+        val savedSet = prefs.getStringSet(KEY_CATEGORY_SET, null)
+        categoriesCache = if (savedSet != null) {
+            HashSet(savedSet)
+        } else {
+            val defaultCategories = getDefaultCategories(context)
+            prefs.edit { putStringSet(KEY_CATEGORY_SET, defaultCategories) }
+            defaultCategories.toMutableSet()
+        }
+    }
+
+    private fun loadFileMapIfNeeded(context: Context) {
+        if (!isInvalidated && fileMapCache != null) return
+
+        val prefs = context.getSharedPreferences(PREFS_FILE_MAP, Context.MODE_PRIVATE)
+        val json = prefs.getString(PREFS_FILE_MAP, "{}")
+        val type = object : TypeToken<Map<String, String>>() {}.type
+        fileMapCache = gson.fromJson(json, type) ?: emptyMap()
+    }
+
+    private fun ensureInitialized(context: Context) {
+        if (isInvalidated) {
+            loadCategoriesIfNeeded(context)
+            loadFileMapIfNeeded(context)
+            isInvalidated = false
+        }
+    }
 
     /**
      * Varsayılan kategorileri döndürür.
@@ -39,42 +74,24 @@ object CategoryManager {
         )
     }
 
-    /**
-     * Kullanıcı tanımlı ve varsayılan tüm kategorileri bir set olarak döndürür.
-     * DÜZELTME: SharedPreferences'ten dönen orijinal setin değiştirilmemesi için
-     * her zaman yeni bir kopya oluşturulup döndürülüyor. Bu, veri kaybı sorununu çözer.
-     */
     fun getCategories(context: Context): MutableSet<String> {
-        val prefs = getCategoryPrefs(context)
-        val savedSet = prefs.getStringSet(KEY_CATEGORY_SET, null)
-        return if (savedSet != null) {
-            HashSet(savedSet) // Orijinal set yerine kopyasını döndür
-        } else {
-            val defaultCategories = getDefaultCategories(context)
-            prefs.edit { putStringSet(KEY_CATEGORY_SET, defaultCategories) }
-            defaultCategories.toMutableSet()
-        }
+        ensureInitialized(context)
+        return categoriesCache?.toMutableSet() ?: mutableSetOf()
     }
 
-    /**
-     * Kategori listesine yeni bir kategori ekler.
-     * @return Ekleme başarılıysa true, kategori zaten varsa false döner.
-     */
     fun addCategory(context: Context, categoryName: String): Boolean {
-        val categories = getCategories(context)
+        ensureInitialized(context)
+        val categories = categoriesCache ?: return false
         if (categories.any { it.equals(categoryName, ignoreCase = true) }) {
             return false // Kategori zaten var
         }
         categories.add(categoryName)
-        getCategoryPrefs(context).edit { putStringSet(KEY_CATEGORY_SET, categories) }
+        context.getSharedPreferences(PREFS_CATEGORIES, Context.MODE_PRIVATE).edit { putStringSet(KEY_CATEGORY_SET, categories) }
         return true
     }
 
-    /**
-     * Bir kategoriyi siler.
-     * @return Silme başarılıysa true, kategori varsayılan veya kullanımda olduğu için silinemiyorsa false döner.
-     */
     fun deleteCategory(context: Context, categoryName: String): Boolean {
+        ensureInitialized(context)
         if (getDefaultCategories(context).contains(categoryName)) {
             return false // Varsayılan kategoriler silinemez.
         }
@@ -82,24 +99,22 @@ object CategoryManager {
             return false // Kategori kullanımda.
         }
 
-        val categories = getCategories(context)
+        val categories = categoriesCache ?: return false
         categories.remove(categoryName)
-        getCategoryPrefs(context).edit { putStringSet(KEY_CATEGORY_SET, categories) }
+        context.getSharedPreferences(PREFS_CATEGORIES, Context.MODE_PRIVATE).edit { putStringSet(KEY_CATEGORY_SET, categories) }
         return true
     }
 
-    /**
-     * Bir kategoriyi yeniden adlandırır.
-     */
     fun renameCategory(context: Context, oldName: String, newName: String) {
+        ensureInitialized(context)
         // 1. Kategori setini güncelle
-        val categories = getCategories(context)
+        val categories = categoriesCache ?: return
         categories.remove(oldName)
         categories.add(newName)
-        getCategoryPrefs(context).edit { putStringSet(KEY_CATEGORY_SET, categories) }
+        context.getSharedPreferences(PREFS_CATEGORIES, Context.MODE_PRIVATE).edit { putStringSet(KEY_CATEGORY_SET, categories) }
 
         // 2. Bu kategoriyi kullanan tüm dosyaların eşleşmesini güncelle
-        val fileMap = getFileCategoryMap(context)
+        val fileMap = fileMapCache?.toMutableMap() ?: return
         val updatedMap = fileMap.toMutableMap()
         fileMap.forEach { (filePath, category) ->
             if (category == oldName) {
@@ -109,41 +124,30 @@ object CategoryManager {
         saveFileCategoryMap(context, updatedMap)
     }
 
-    /**
-     * Belirli bir dosyanın hangi kategoriye ait olduğunu döndürür.
-     */
     fun getCategoryForFile(context: Context, filePath: String): String? {
-        return getFileCategoryMap(context)[filePath]
+        ensureInitialized(context)
+        return fileMapCache?.get(filePath)
     }
 
-    /**
-     * Bir dosya için kategori ataması yapar.
-     */
     fun setCategoryForFile(context: Context, filePath: String, categoryName: String) {
-        val fileMap = getFileCategoryMap(context).toMutableMap()
+        ensureInitialized(context)
+        val fileMap = fileMapCache?.toMutableMap() ?: mutableMapOf()
         fileMap[filePath] = categoryName
         saveFileCategoryMap(context, fileMap)
     }
 
-    /**
-     * Bir dosyanın kategori atamasını kaldırır (dosya silindiğinde kullanılır).
-     */
     fun removeCategoryForFile(context: Context, filePath: String) {
-        val fileMap = getFileCategoryMap(context).toMutableMap()
+        ensureInitialized(context)
+        val fileMap = fileMapCache?.toMutableMap() ?: return
         fileMap.remove(filePath)
         saveFileCategoryMap(context, fileMap)
     }
 
-    /**
-     * Belirli bir kategorideki tüm dosyaların yollarını döndürür.
-     */
     fun getFilesInCategory(context: Context, categoryName: String): List<String> {
-        return getFileCategoryMap(context).filter { it.value == categoryName }.keys.toList()
+        ensureInitialized(context)
+        return fileMapCache?.filter { it.value == categoryName }?.keys?.toList() ?: emptyList()
     }
 
-    /**
-     * Bir dosya adı uzantısına göre varsayılan kategori adını döndürür.
-     */
     fun getDefaultCategoryNameByExtension(context: Context, fileName: String): String {
         val extension = fileName.substringAfterLast('.', "").lowercase()
         return when (extension) {
@@ -156,16 +160,9 @@ object CategoryManager {
         }
     }
 
-    // --- Private Helper Fonksiyonlar ---
-
-    private fun getFileCategoryMap(context: Context): Map<String, String> {
-        val json = getFileMapPrefs(context).getString(PREFS_FILE_MAP, "{}")
-        val type = object : TypeToken<Map<String, String>>() {}.type
-        return gson.fromJson(json, type) ?: emptyMap()
-    }
-
     private fun saveFileCategoryMap(context: Context, map: Map<String, String>) {
         val json = gson.toJson(map)
-        getFileMapPrefs(context).edit { putString(PREFS_FILE_MAP, json) }
+        context.getSharedPreferences(PREFS_FILE_MAP, Context.MODE_PRIVATE).edit { putString(PREFS_FILE_MAP, json) }
+        fileMapCache = map.toMutableMap()
     }
 }

@@ -77,7 +77,7 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
     private fun setupGoogleSignIn() {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
-            .requestServerAuthCode(getString(R.string.default_web_client_id)) // Sunucu tarafı erişimi için
+            .requestServerAuthCode(getString(R.string.default_web_client_id))
             .requestScopes(Scope(DriveScopes.DRIVE_FILE))
             .build()
         googleSignInClient = GoogleSignIn.getClient(this, gso)
@@ -97,7 +97,7 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
 
     private fun handleSignInResult(completedTask: Task<GoogleSignInAccount>) {
         try {
-            val account = completedTask.getResult(ApiException::class.java)
+            val account = completedTask.getResult(ApiException::class.java)!!
             Toast.makeText(this, "Hoşgeldin, ${account.displayName}", Toast.LENGTH_SHORT).show()
             updateUI(account)
         } catch (e: ApiException) {
@@ -108,18 +108,15 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
 
     private fun updateUI(account: GoogleSignInAccount?) {
         if (account != null) {
-            // Giriş yapılmış durum
             binding.textViewDriveStatus.text = "Giriş yapıldı: ${account.email}"
             binding.buttonDriveSignInOut.text = "Çıkış Yap"
             binding.buttonBackup.isEnabled = true
             binding.buttonRestore.isEnabled = true
             binding.buttonDeleteBackup.isEnabled = true
-            // Drive Helper'ı başlat
             driveHelper = GoogleDriveHelper(this, account)
             checkLastBackup()
 
         } else {
-            // Giriş yapılmamış durum
             binding.textViewDriveStatus.text = "Giriş yapılmadı"
             binding.textViewLastBackup.visibility = View.GONE
             binding.buttonDriveSignInOut.text = "Giriş Yap"
@@ -136,10 +133,10 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         lifecycleScope.launch {
             val backupDate = driveHelper?.getBackupDate()
             withContext(Dispatchers.Main) {
-                if (backupDate != null) {
-                    binding.textViewLastBackup.text = "Son Yedekleme: $backupDate"
+                binding.textViewLastBackup.text = if (backupDate != null) {
+                    "Son Yedekleme: $backupDate"
                 } else {
-                    binding.textViewLastBackup.text = "Daha önce yedek alınmamış."
+                    "Daha önce yedek alınmamış."
                 }
             }
         }
@@ -189,10 +186,16 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             withContext(Dispatchers.Main) {
                 dialog.dismiss()
                 if (result == true) {
-                    Toast.makeText(this@SettingsActivity, "Veriler başarıyla geri yüklendi. Uygulama yeniden başlatılacak.", Toast.LENGTH_LONG).show()
-                    // Uygulamayı yeniden başlat
-                    val intent = packageManager.getLaunchIntentForPackage(packageName)
-                    val componentName = intent!!.component
+                    // KESİN ÇÖZÜM: Singleton nesnelerin hafızadaki önbelleğini temizle.
+                    // Bu, uygulamanın yeni verileri diskten okumasını zorunlu kılar.
+                    CategoryManager.invalidate()
+                    FileHashManager.invalidate()
+
+                    Toast.makeText(this@SettingsActivity, "Veriler başarıyla geri yüklendi. Uygulama yeniden başlatılıyor.", Toast.LENGTH_LONG).show()
+
+                    // Uygulamayı yeniden başlatarak temiz bir başlangıç yap.
+                    val intent = packageManager.getLaunchIntentForPackage(packageName)!!
+                    val componentName = intent.component!!
                     val mainIntent = Intent.makeRestartActivityTask(componentName)
                     startActivity(mainIntent)
                     Runtime.getRuntime().exit(0)

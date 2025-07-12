@@ -127,6 +127,13 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             }
         }
 
+        // GERİ YÜKLEME SONRASI KONTROLÜ
+        val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
+        if (prefs.getBoolean("restore_completed", false)) {
+            // İşareti temizle ki her açılışta olmasın
+            prefs.edit { putBoolean("restore_completed", false) }
+        }
+
         checkFirstLaunch()
         setSupportActionBar(binding.toolbar)
         setupRecyclerView()
@@ -135,7 +142,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             showAddOptionsDialog()
         }
 
-        // YENİ EKLENDİ: Yedek kontrolü
         checkAndPromptForRestore()
     }
 

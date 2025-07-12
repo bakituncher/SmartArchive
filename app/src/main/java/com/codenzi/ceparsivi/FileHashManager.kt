@@ -12,27 +12,62 @@ object FileHashManager {
 
     private const val PREFS_NAME = "FileHashes"
 
+    private var isInvalidated = true
+    // Hatanın çözümü için önbelleği daha güvenli bir tiple (String, String) tanımlıyoruz.
+    private var hashesCache: MutableMap<String, String>? = null
+
+    fun invalidate() {
+        isInvalidated = true
+        hashesCache = null
+    }
+
     private fun getPrefs(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    // Önbelleği, tipleri karıştırmayacak şekilde güvenli olarak dolduruyoruz.
+    private fun loadHashesIfNeeded(context: Context) {
+        if (!isInvalidated && hashesCache != null) return
+
+        val prefs = getPrefs(context)
+        val allPrefs = prefs.all
+        val tempMap = mutableMapOf<String, String>()
+        // Sadece String olan değerleri alarak tip güvenliği sağlıyoruz.
+        allPrefs.forEach { (key, value) ->
+            if (value is String) {
+                tempMap[key] = value
+            }
+        }
+        hashesCache = tempMap
+        isInvalidated = false
+    }
+
     fun hashExists(context: Context, hash: String): Boolean {
-        return getPrefs(context).contains(hash)
+        loadHashesIfNeeded(context)
+        return hashesCache?.containsKey(hash) ?: false
     }
 
     fun getFileNameForHash(context: Context, hash: String): String? {
-        return getPrefs(context).getString(hash, null)
+        loadHashesIfNeeded(context)
+        // Artık tip dönüşümüne gerek yok, kod daha temiz.
+        return hashesCache?.get(hash)
     }
 
     fun addHash(context: Context, hash: String, fileName: String) {
+        loadHashesIfNeeded(context)
         getPrefs(context).edit {
             putString(hash, fileName)
         }
+        // Önbelleği de anında güncelliyoruz.
+        hashesCache?.put(hash, fileName)
     }
 
     fun removeHashForFile(context: Context, fileName: String) {
+        loadHashesIfNeeded(context)
         val prefs = getPrefs(context)
         var hashToRemove: String? = null
-        val allEntries = prefs.all
+
+        // Artık bu döngü tamamen tip güvenli.
+        val allEntries = hashesCache ?: return
         for ((key, value) in allEntries) {
             if (value == fileName) {
                 hashToRemove = key
@@ -44,6 +79,7 @@ object FileHashManager {
             prefs.edit {
                 remove(it)
             }
+            hashesCache?.remove(it)
         }
     }
 
