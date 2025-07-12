@@ -2,9 +2,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
-
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
@@ -21,6 +26,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.CepArsivi"
         tools:targetApi="34">
+
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
 
         <uses-library android:name="org.apache.http.legacy" android:required="false" />
 
@@ -42,11 +52,12 @@
         <activity
             android:name=".SaveFileActivity"
             android:exported="true"
-            android:theme="@style/Theme.CepArsivi.Transparent"> <intent-filter>
-            <action android:name="android.intent.action.SEND" />
-            <category android:name="android.intent.category.DEFAULT" />
-            <data android:mimeType="*/*" />
-        </intent-filter>
+            android:theme="@style/Theme.CepArsivi.Transparent">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
         </activity>
 
         <provider

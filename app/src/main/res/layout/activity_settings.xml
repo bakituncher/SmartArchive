@@ -110,6 +110,37 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
 
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchAutoBackup"
+                        style="@style/TextAppearance.Material3.BodyLarge"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="16dp"
+                        android:text="@string/settings_auto_backup_title"
+                        android:drawablePadding="16dp"
+                        app:drawableStartCompat="@drawable/ic_cloud_sync"
+                        app:drawableTint="?attr/colorOnSurfaceVariant"
+                        />
+
+                    <TextView
+                        style="@style/TextAppearance.Material3.BodySmall"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="56dp"
+                        android:layout_marginEnd="16dp"
+                        android:layout_marginTop="-12dp"
+                        android:layout_marginBottom="16dp"
+                        android:text="@string/settings_auto_backup_description"
+                        android:textColor="?attr/colorOnSurfaceVariant"/>
+
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="?attr/colorOutlineVariant"
+                        android:layout_marginHorizontal="16dp"/>
+
+
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"

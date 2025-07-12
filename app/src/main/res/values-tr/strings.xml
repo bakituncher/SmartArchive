@@ -106,6 +106,22 @@
     <string name="last_backup_at">Son Yedekleme: %1$s</string>
     <string name="last_backup_never">Daha önce yedek alınmamış.</string>
 
-
+    <string name="ok">Tamam</string>
+    <string name="settings_auto_backup_title">Otomatik Yedekleme</string>
+    <string name="settings_auto_backup_description">Wi-Fi\'ye bağlıyken ve şarj olurken verilerinizi günlük olarak Google Drive\'a otomatik yedekler.</string>
+    <string name="auto_backup_sign_in_required">Otomatik yedeklemeyi etkinleştirmek için lütfen Google hesabınıza giriş yapın.</string>
+    <string name="auto_backup_enabled_toast">Otomatik yedekleme etkinleştirildi.</string>
+    <string name="auto_backup_disabled_toast">Otomatik yedekleme devre dışı bırakıldı.</string>
+    <string name="notification_permission_title">Bildirim İzni</string>
+    <string name="notification_permission_rationale">Otomatik yedeklemelerin durumunu gösterebilmek için bu izin gereklidir. Bu izin olmadan yedeklerinizin başarılı olup olmadığını bilemezsiniz.</string>
+    <string name="notification_permission_denied">Bildirim izni reddedildi. Otomatik yedekleme devre dışı bırakılacak.</string>
+    <string name="backup_channel_name">Yedekleme Bildirimleri</string>
+    <string name="backup_channel_description">Otomatik yedekleme durumu için bildirimler.</string>
+    <string name="backup_notification_progress_title">Arşiviniz yedekleniyor...</string>
+    <string name="backup_success_title">Yedekleme Tamamlandı</string>
+    <string name="backup_success_message">Arşiviniz %1$s tarihinde başarıyla yedeklendi.</string>
+    <string name="backup_failed_title">Yedekleme Başarısız</string>
+    <string name="backup_failed_message">Arşiviniz yedeklenemedi. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.</string>
+    <string name="backup_failed_message_exception">Yedekleme sırasında bir hata oluştu: %s</string>
 
 </resources>

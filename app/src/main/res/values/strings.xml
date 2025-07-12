@@ -110,4 +110,22 @@
     <string name="last_backup_at">Last backup: %1$s</string>
     <string name="last_backup_never">No backup has been made before.</string>
 
+    <string name="ok">OK</string>
+    <string name="settings_auto_backup_title">Automatic Backup</string>
+    <string name="settings_auto_backup_description">Automatically backs up your data to Google Drive daily when connected to Wi-Fi and charging.</string>
+    <string name="auto_backup_sign_in_required">Please sign in to your Google account to enable automatic backup.</string>
+    <string name="auto_backup_enabled_toast">Automatic backup enabled.</string>
+    <string name="auto_backup_disabled_toast">Automatic backup disabled.</string>
+    <string name="notification_permission_title">Notification Permission</string>
+    <string name="notification_permission_rationale">This permission is needed to show the status of automatic backups. Without it, you won\'t know if your backups are successful.</string>
+    <string name="notification_permission_denied">Notification permission denied. Automatic backup will be disabled.</string>
+    <string name="backup_channel_name">Backup Notifications</string>
+    <string name="backup_channel_description">Notifications for automatic backup status.</string>
+    <string name="backup_notification_progress_title">Backing up your archive...</string>
+    <string name="backup_success_title">Backup Complete</string>
+    <string name="backup_success_message">Your archive was successfully backed up at %1$s.</string>
+    <string name="backup_failed_title">Backup Failed</string>
+    <string name="backup_failed_message">Could not back up your archive. Please check your internet connection and try again.</string>
+    <string name="backup_failed_message_exception">An error occurred during backup: %s</string>
+
 </resources>

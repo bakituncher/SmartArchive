@@ -1,8 +1,11 @@
 package com.codenzi.ceparsivi
 
+import android.Manifest
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -10,6 +13,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
@@ -45,6 +49,15 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         }
     }
 
+    // YENİ EKLENDİ: Android 13+ için bildirim izni isteme launcheri
+    private val requestNotificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
+            if (!isGranted) {
+                Toast.makeText(this, getString(R.string.notification_permission_denied), Toast.LENGTH_LONG).show()
+                binding.switchAutoBackup.isChecked = false
+            }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
@@ -54,6 +67,7 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         setupGoogleSignIn()
+        loadSettings() // Ayarları yükle
 
         binding.textViewTheme.setOnClickListener { showThemeSelectionDialog() }
         binding.textViewManageCategories.setOnClickListener { showManageCategoriesDialog() }
@@ -66,12 +80,73 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         binding.buttonBackup.setOnClickListener { backupData() }
         binding.buttonRestore.setOnClickListener { restoreData() }
         binding.buttonDeleteBackup.setOnClickListener { showDeleteConfirmationDialog() }
+
+        // YENİ EKLENDİ: Otomatik yedekleme switch'inin dinleyicisi
+        binding.switchAutoBackup.setOnCheckedChangeListener { _, isChecked ->
+            handleAutoBackupSwitch(isChecked)
+        }
     }
 
     override fun onStart() {
         super.onStart()
         updateUI(GoogleSignIn.getLastSignedInAccount(this))
     }
+
+    // YENİ EKLENDİ: Ayarları SharedPreferences'dan yükler
+    private fun loadSettings() {
+        val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
+        binding.switchAutoBackup.isChecked = prefs.getBoolean("auto_backup_enabled", false)
+    }
+
+    // YENİ EKLENDİ: Otomatik yedekleme anahtarının durumunu yönetir
+    private fun handleAutoBackupSwitch(isEnabled: Boolean) {
+        if (isEnabled) {
+            val account = GoogleSignIn.getLastSignedInAccount(this)
+            if (account == null) {
+                Toast.makeText(this, getString(R.string.auto_backup_sign_in_required), Toast.LENGTH_LONG).show()
+                binding.switchAutoBackup.isChecked = false
+                return
+            }
+            checkAndRequestNotificationPermission()
+            BackupScheduler.schedulePeriodicBackup(this)
+            Toast.makeText(this, getString(R.string.auto_backup_enabled_toast), Toast.LENGTH_SHORT).show()
+        } else {
+            BackupScheduler.cancelPeriodicBackup(this)
+            Toast.makeText(this, getString(R.string.auto_backup_disabled_toast), Toast.LENGTH_SHORT).show()
+        }
+
+        // Seçimi kaydet
+        getSharedPreferences("AppPrefs", MODE_PRIVATE).edit {
+            putBoolean("auto_backup_enabled", isEnabled)
+        }
+    }
+
+    // YENİ EKLENDİ: Bildirim iznini kontrol eder ve gerekirse ister
+    private fun checkAndRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            when {
+                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED -> {
+                    // İzin zaten var
+                }
+                shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
+                    // Kullanıcı izni reddetti, bir açıklama göster
+                    AlertDialog.Builder(this)
+                        .setTitle(getString(R.string.notification_permission_title))
+                        .setMessage(getString(R.string.notification_permission_rationale))
+                        .setPositiveButton(getString(R.string.ok)) { _, _ ->
+                            requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                        .setNegativeButton(getString(R.string.cancel), null)
+                        .show()
+                }
+                else -> {
+                    // Doğrudan izin iste
+                    requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        }
+    }
+
 
     private fun setupGoogleSignIn() {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -90,6 +165,10 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         googleSignInClient.signOut().addOnCompleteListener(this) {
             updateUI(null)
             Toast.makeText(this, "Oturum kapatıldı.", Toast.LENGTH_SHORT).show()
+            // Oturum kapatılınca otomatik yedeklemeyi de devre dışı bırak
+            if (binding.switchAutoBackup.isChecked) {
+                binding.switchAutoBackup.isChecked = false
+            }
         }
     }
 
@@ -110,6 +189,7 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             binding.textViewDriveStatus.text = getString(R.string.status_signed_in_as, account.email)
             binding.buttonDriveSignInOut.text = getString(R.string.action_sign_out)
             setBackupButtonsEnabled(true)
+            binding.switchAutoBackup.isEnabled = true // YENİ EKLENDİ
             driveHelper = GoogleDriveHelper(this, account)
             checkLastBackup()
         } else {
@@ -117,6 +197,7 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             binding.textViewLastBackup.visibility = View.GONE
             binding.buttonDriveSignInOut.text = getString(R.string.action_sign_in)
             setBackupButtonsEnabled(false)
+            binding.switchAutoBackup.isEnabled = false // YENİ EKLENDİ
             driveHelper = null
         }
     }

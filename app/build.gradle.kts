@@ -16,8 +16,8 @@ android {
         applicationId = "com.codenzi.ceparsivi"
         minSdk = 24
         targetSdk = 35
-        versionCode = 5 // Versiyonu bir daha artıralım
-        versionName = "1.4-stable"
+        versionCode = 2 // Versiyonu bir daha artıralım
+        versionName = "1.0.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -81,6 +81,9 @@ dependencies {
     implementation("com.google.http-client:google-http-client-gson:1.43.3")
     implementation("com.google.api-client:google-api-client-android:2.2.0")
     implementation("com.google.apis:google-api-services-drive:v3-rev20220815-2.0.0")
+
+    // YENİ EKLENDİ: Otomatik Yedekleme için WorkManager
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
