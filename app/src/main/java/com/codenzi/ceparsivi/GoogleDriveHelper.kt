@@ -28,6 +28,7 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
     private val drive: Drive
     private val appFolderName = "SmartArchiveBackup"
     private val backupFileName = "smart_archive_backup.zip"
+    // "AppPrefs" eklendi, böylece "bir daha sorma" seçeneğini de yedekliyoruz.
     private val prefsToBackup = arrayOf("AppCategories", "FileCategoryMapping", "FileHashes", "ThemePrefs", "AppPrefs")
 
     init {
@@ -62,23 +63,24 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
         }
     }
 
-    suspend fun getBackupDate(): String? = withContext(Dispatchers.IO) {
+    // YENİ: Sadece tarih değil, dosyanın kimliğini ve son değiştirilme zamanını da döndüren fonksiyon
+    suspend fun getBackupMetadata(): Pair<String, Long>? = withContext(Dispatchers.IO) {
         try {
             val appFolderId = getAppFolderId() ?: return@withContext null
             val query = "'$appFolderId' in parents and name='$backupFileName' and trashed=false"
-            val result = drive.files().list().setQ(query).setSpaces("drive").setFields("files(modifiedTime)").execute()
+            val result = drive.files().list().setQ(query).setSpaces("drive").setFields("files(id, modifiedTime)").execute()
             if (result.files.isNotEmpty()) {
-                val modifiedTime = result.files[0].modifiedTime.value
-                val date = Date(modifiedTime)
-                SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale.getDefault()).format(date)
+                val file = result.files[0]
+                Pair(file.id, file.modifiedTime.value)
             } else {
                 null
             }
         } catch (e: Exception) {
-            Log.e("DriveHelper", "Error getting backup date", e)
+            Log.e("DriveHelper", "Error getting backup metadata", e)
             null
         }
     }
+
 
     suspend fun backupData(): Boolean = withContext(Dispatchers.IO) {
         try {
@@ -98,7 +100,7 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
                 val fileId = fileList.files[0].id
                 drive.files().update(fileId, fileMetadata, mediaContent).execute()
             }
-            zipFile.delete() // Cache'deki zip dosyasını temizle
+            zipFile.delete()
             true
         } catch (e: Exception) {
             Log.e("DriveHelper", "Error during backup", e)
@@ -113,7 +115,6 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
 
             FileOutputStream(zipFile).use { fos ->
                 ZipOutputStream(fos).use { zos ->
-                    // "arsiv" klasörünü ve içindekileri ziple
                     val archiveDir = File(context.filesDir, "arsiv")
                     if (archiveDir.exists() && archiveDir.isDirectory) {
                         archiveDir.listFiles()?.forEach { file ->
@@ -121,7 +122,6 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
                         }
                     }
 
-                    // SharedPreferences dosyalarını ziple
                     val prefsDir = File(context.applicationInfo.dataDir, "shared_prefs")
                     prefsToBackup.forEach { prefName ->
                         val prefsFile = File(prefsDir, "$prefName.xml")
@@ -149,33 +149,21 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
         val zipFile = File(context.cacheDir, "restore.zip")
 
         try {
-            val appFolderId = getAppFolderId() ?: return@withContext false
-            val query = "'$appFolderId' in parents and name='$backupFileName' and trashed=false"
-            val fileList = drive.files().list().setQ(query).setSpaces("drive").setFields("files(id)").execute()
+            val backupMetadata = getBackupMetadata() ?: return@withContext false
+            val fileId = backupMetadata.first
 
-            if (fileList.files.isEmpty()) {
-                Log.e("DriveHelper", "No backup file found to restore")
-                return@withContext false
-            }
-
-            val fileId = fileList.files[0].id
-
-            // 1. Yedek dosyasını indir
             if(zipFile.exists()) zipFile.delete()
             FileOutputStream(zipFile).use { fos ->
                 drive.files().get(fileId).executeMediaAndDownloadTo(fos)
             }
 
-            // 2. Mevcut verileri temizle
             cleanLocalData()
 
-            // 3. İndirilen Zip'i aç
             ZipInputStream(zipFile.inputStream()).use { zis ->
                 var entry: ZipEntry? = zis.nextEntry
                 while (entry != null) {
                     val outputFile = File(context.filesDir.parentFile, entry.name)
 
-                    // Güvenlik: Zip'ten çıkan yolun uygulama dizini dışına çıkmadığından emin ol
                     if (!outputFile.canonicalPath.startsWith(context.filesDir.parentFile.canonicalPath)) {
                         throw SecurityException("Zip Path Traversal Attack detected!")
                     }
@@ -191,21 +179,17 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
             true
         } catch (e: Exception) {
             Log.e("DriveHelper", "Error during restore", e)
-            // Hata durumunda temiz bir başlangıç için verileri tekrar temizle
             cleanLocalData()
             false
         } finally {
-            // İndirilen geçici zip dosyasını her durumda sil
             if (zipFile.exists()) zipFile.delete()
         }
     }
 
     suspend fun deleteAllData() = withContext(Dispatchers.IO) {
         try {
-            // 1. Yerel verileri temizle
             cleanLocalData()
 
-            // 2. Google Drive'daki yedeği sil
             val appFolderId = getAppFolderId() ?: return@withContext
             val query = "'$appFolderId' in parents and name='$backupFileName' and trashed=false"
             val fileList = drive.files().list().setQ(query).setSpaces("drive").setFields("files(id)").execute()
@@ -220,12 +204,10 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
     }
 
     private fun cleanLocalData() {
-        // "arsiv" klasörünü sil
         val archiveDir = File(context.filesDir, "arsiv")
         if (archiveDir.exists()) {
             archiveDir.deleteRecursively()
         }
-        // Yedeklenen tüm ayar dosyalarını temizle
         prefsToBackup.forEach { prefName ->
             context.getSharedPreferences(prefName, Context.MODE_PRIVATE).edit().clear().apply()
         }

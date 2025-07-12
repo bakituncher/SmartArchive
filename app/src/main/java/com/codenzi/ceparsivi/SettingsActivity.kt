@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import com.codenzi.ceparsivi.databinding.ActivitySettingsBinding
@@ -24,6 +25,9 @@ import com.google.api.services.drive.DriveScopes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.CategoryDialogListener {
 
@@ -100,6 +104,8 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             val account = completedTask.getResult(ApiException::class.java)!!
             Toast.makeText(this, "Hoşgeldin, ${account.displayName}", Toast.LENGTH_SHORT).show()
             updateUI(account)
+            // KESİN ÇÖZÜM: Giriş yapılır yapılmaz yedek kontrolünü tetikle.
+            checkBackupAndPrompt(account)
         } catch (e: ApiException) {
             Log.w("SignIn", "signInResult:failed code=" + e.statusCode)
             updateUI(null)
@@ -114,6 +120,7 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             binding.buttonRestore.isEnabled = true
             binding.buttonDeleteBackup.isEnabled = true
             driveHelper = GoogleDriveHelper(this, account)
+            // Yedek tarihini her zaman göster
             checkLastBackup()
 
         } else {
@@ -131,16 +138,56 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         binding.textViewLastBackup.text = "Yedek kontrol ediliyor..."
         binding.textViewLastBackup.visibility = View.VISIBLE
         lifecycleScope.launch {
-            val backupDate = driveHelper?.getBackupDate()
+            val backupMetadata = driveHelper?.getBackupMetadata()
             withContext(Dispatchers.Main) {
-                binding.textViewLastBackup.text = if (backupDate != null) {
-                    "Son Yedekleme: $backupDate"
+                binding.textViewLastBackup.text = if (backupMetadata != null) {
+                    val date = Date(backupMetadata.second)
+                    val formattedDate = SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale.getDefault()).format(date)
+                    "Son Yedekleme: $formattedDate"
                 } else {
                     "Daha önce yedek alınmamış."
                 }
             }
         }
     }
+
+    // YENİ VE AKILLI: Yedek kontrol ve sorma mantığı
+    private fun checkBackupAndPrompt(account: GoogleSignInAccount) {
+        val localDriveHelper = GoogleDriveHelper(this, account)
+        lifecycleScope.launch {
+            val backupMetadata = localDriveHelper.getBackupMetadata() ?: return@launch
+
+            val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
+            val lastPromptedTimestamp = prefs.getLong("last_prompted_timestamp_${account.id}", 0L)
+
+            // Sadece daha önce sorulmamış VEYA daha yeni bir yedek varsa sor.
+            if (backupMetadata.second > lastPromptedTimestamp) {
+                withContext(Dispatchers.Main) {
+                    showRestorePromptDialog(backupMetadata.second, account.id!!)
+                }
+            }
+        }
+    }
+
+    private fun showRestorePromptDialog(backupTimestamp: Long, accountId: String) {
+        val date = Date(backupTimestamp)
+        val formattedDate = SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale.getDefault()).format(date)
+
+        AlertDialog.Builder(this)
+            .setTitle("Yedek Bulundu")
+            .setMessage("$formattedDate tarihli bir yedeğiniz bulundu. Verilerinizi şimdi geri yüklemek ister misiniz?")
+            .setPositiveButton("Evet, Geri Yükle") { _, _ ->
+                performRestore()
+            }
+            .setNegativeButton("Hayır, Teşekkürler", null)
+            .setOnDismissListener {
+                // Kullanıcı ne cevap verirse versin, bu yedek için tekrar sorma.
+                val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
+                prefs.edit { putLong("last_prompted_timestamp_${accountId}", backupTimestamp) }
+            }
+            .show()
+    }
+
 
     private fun backupData() {
         val dialog = AlertDialog.Builder(this)
@@ -186,14 +233,11 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             withContext(Dispatchers.Main) {
                 dialog.dismiss()
                 if (result == true) {
-                    // KESİN ÇÖZÜM: Singleton nesnelerin hafızadaki önbelleğini temizle.
-                    // Bu, uygulamanın yeni verileri diskten okumasını zorunlu kılar.
                     CategoryManager.invalidate()
                     FileHashManager.invalidate()
 
                     Toast.makeText(this@SettingsActivity, "Veriler başarıyla geri yüklendi. Uygulama yeniden başlatılıyor.", Toast.LENGTH_LONG).show()
 
-                    // Uygulamayı yeniden başlatarak temiz bir başlangıç yap.
                     val intent = packageManager.getLaunchIntentForPackage(packageName)!!
                     val componentName = intent.component!!
                     val mainIntent = Intent.makeRestartActivityTask(componentName)
