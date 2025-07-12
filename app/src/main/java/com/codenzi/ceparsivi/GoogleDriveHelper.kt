@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.FileContent
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
@@ -18,17 +19,27 @@ import java.text.SimpleDateFormat
 import java.util.Collections
 import java.util.Date
 import java.util.Locale
-import java.util.zip.ZipEntry
+import java.util.zip.ZipException
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import com.google.api.services.drive.model.File as DriveFile
+import java.util.zip.ZipEntry // <<< HATA GİDERİLDİ: EKSİK OLAN IMPORT SATIRI EKLENDİ
+
+// Geri yükleme işleminin sonucunu bildiren, daha anlaşılır bir yapı
+enum class RestoreResult {
+    SUCCESS,
+    NO_BACKUP_FOUND,
+    DOWNLOAD_FAILED,
+    VALIDATION_FAILED, // Yedek dosyası bozuk veya geçersiz
+    RESTORE_FAILED,    // Dosyalar yerine yazılamadı
+    UNKNOWN_ERROR
+}
 
 class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccount) {
 
     private val drive: Drive
     private val appFolderName = "SmartArchiveBackup"
     private val backupFileName = "smart_archive_backup.zip"
-    // "AppPrefs" eklendi, böylece "bir daha sorma" seçeneğini de yedekliyoruz.
     private val prefsToBackup = arrayOf("AppCategories", "FileCategoryMapping", "FileHashes", "ThemePrefs", "AppPrefs")
 
     init {
@@ -57,13 +68,15 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
                 val createdFolder = drive.files().create(folderMetadata).setFields("id").execute()
                 createdFolder.id
             }
+        } catch (e: IOException) {
+            Log.e("DriveHelper", "Network error getting app folder ID", e)
+            null
         } catch (e: Exception) {
-            Log.e("DriveHelper", "Error getting/creating app folder", e)
+            Log.e("DriveHelper", "Unknown error getting app folder ID", e)
             null
         }
     }
 
-    // YENİ: Sadece tarih değil, dosyanın kimliğini ve son değiştirilme zamanını da döndüren fonksiyon
     suspend fun getBackupMetadata(): Pair<String, Long>? = withContext(Dispatchers.IO) {
         try {
             val appFolderId = getAppFolderId() ?: return@withContext null
@@ -75,17 +88,20 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
             } else {
                 null
             }
+        } catch (e: IOException) {
+            Log.e("DriveHelper", "Network error getting backup metadata", e)
+            null
         } catch (e: Exception) {
-            Log.e("DriveHelper", "Error getting backup metadata", e)
+            Log.e("DriveHelper", "Unknown error getting backup metadata", e)
             null
         }
     }
 
-
     suspend fun backupData(): Boolean = withContext(Dispatchers.IO) {
+        var zipFile: File? = null
         try {
             val appFolderId = getAppFolderId() ?: return@withContext false
-            val zipFile = createBackupZip() ?: return@withContext false
+            zipFile = createBackupZip() ?: return@withContext false
 
             val query = "'$appFolderId' in parents and name='$backupFileName' and trashed=false"
             val fileList = drive.files().list().setQ(query).setSpaces("drive").setFields("files(id)").execute()
@@ -100,103 +116,136 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
                 val fileId = fileList.files[0].id
                 drive.files().update(fileId, fileMetadata, mediaContent).execute()
             }
-            zipFile.delete()
             true
-        } catch (e: Exception) {
-            Log.e("DriveHelper", "Error during backup", e)
+        } catch (e: IOException) {
+            Log.e("DriveHelper", "Network error during backup", e)
             false
+        } catch (e: Exception) {
+            Log.e("DriveHelper", "Unknown error during backup", e)
+            false
+        } finally {
+            zipFile?.delete()
         }
     }
 
     private fun createBackupZip(): File? {
-        return try {
-            val zipFile = File(context.cacheDir, backupFileName)
+        val zipFile = File(context.cacheDir, backupFileName)
+        try {
             if(zipFile.exists()) zipFile.delete()
-
-            FileOutputStream(zipFile).use { fos ->
-                ZipOutputStream(fos).use { zos ->
-                    val archiveDir = File(context.filesDir, "arsiv")
-                    if (archiveDir.exists() && archiveDir.isDirectory) {
-                        archiveDir.listFiles()?.forEach { file ->
-                            addFileToZip(zos, file, "files/arsiv/${file.name}")
-                        }
+            ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
+                val archiveDir = File(context.filesDir, "arsiv")
+                if (archiveDir.exists() && archiveDir.isDirectory) {
+                    archiveDir.walk().filter { it.isFile }.forEach { file ->
+                        val zipPath = "files/arsiv/" + file.relativeTo(archiveDir)
+                        addFileToZip(zos, file, zipPath)
                     }
-
-                    val prefsDir = File(context.applicationInfo.dataDir, "shared_prefs")
-                    prefsToBackup.forEach { prefName ->
-                        val prefsFile = File(prefsDir, "$prefName.xml")
-                        if (prefsFile.exists()) {
-                            addFileToZip(zos, prefsFile, "shared_prefs/$prefName.xml")
-                        }
+                }
+                val prefsDir = File(context.applicationInfo.dataDir, "shared_prefs")
+                prefsToBackup.forEach { prefName ->
+                    val prefsFile = File(prefsDir, "$prefName.xml")
+                    if (prefsFile.exists()) {
+                        addFileToZip(zos, prefsFile, "shared_prefs/$prefName.xml")
                     }
                 }
             }
-            zipFile
-        } catch (e: IOException) {
+            return zipFile
+        } catch (e: Exception) {
             Log.e("DriveHelper", "Error creating zip file", e)
-            null
+            zipFile.delete()
+            return null
         }
     }
 
     private fun addFileToZip(zos: ZipOutputStream, file: File, zipPath: String) {
-        zos.putNextEntry(ZipEntry(zipPath))
+        val entry = ZipEntry(zipPath.replace(File.separatorChar, '/'))
+        zos.putNextEntry(entry)
         file.inputStream().use { it.copyTo(zos) }
         zos.closeEntry()
     }
 
-
-    suspend fun restoreData(): Boolean = withContext(Dispatchers.IO) {
-        val zipFile = File(context.cacheDir, "restore.zip")
+    suspend fun restoreData(): RestoreResult = withContext(Dispatchers.IO) {
+        val tempZipFile = File(context.cacheDir, "restore_temp.zip")
+        val tempRestoreDir = File(context.cacheDir, "restore_temp_dir")
 
         try {
-            val backupMetadata = getBackupMetadata() ?: return@withContext false
+            val backupMetadata = getBackupMetadata() ?: return@withContext RestoreResult.NO_BACKUP_FOUND
             val fileId = backupMetadata.first
 
-            if(zipFile.exists()) zipFile.delete()
-            FileOutputStream(zipFile).use { fos ->
+            // Adım 1: Yedeği indir
+            if(tempZipFile.exists()) tempZipFile.delete()
+            FileOutputStream(tempZipFile).use { fos ->
                 drive.files().get(fileId).executeMediaAndDownloadTo(fos)
             }
 
+            // Adım 2: Yedeği doğrula (geçici bir klasöre açarak)
+            if (tempRestoreDir.exists()) tempRestoreDir.deleteRecursively()
+            tempRestoreDir.mkdirs()
+            try {
+                unzip(tempZipFile, tempRestoreDir)
+            } catch (e: ZipException) {
+                Log.e("DriveHelper", "Backup validation failed: Invalid zip file", e)
+                return@withContext RestoreResult.VALIDATION_FAILED
+            }
+
+            // Adım 3: Her şey yolundaysa, mevcut verileri temizle
             cleanLocalData()
 
-            ZipInputStream(zipFile.inputStream()).use { zis ->
-                var entry: ZipEntry? = zis.nextEntry
-                while (entry != null) {
-                    val outputFile = File(context.filesDir.parentFile, entry.name)
+            // Adım 4: Doğrulanmış verileri kalıcı yerlerine taşı
+            val appDataDir = context.filesDir.parentFile!!
+            if (!tempRestoreDir.renameTo(appDataDir)) {
+                // Eğer taşıma başarısız olursa (nadiren olur), kopyalamayı dene
+                tempRestoreDir.copyRecursively(appDataDir, overwrite = true)
+            }
 
-                    if (!outputFile.canonicalPath.startsWith(context.filesDir.parentFile.canonicalPath)) {
-                        throw SecurityException("Zip Path Traversal Attack detected!")
-                    }
+            return@withContext RestoreResult.SUCCESS
 
+        } catch(e: GoogleJsonResponseException) {
+            Log.e("DriveHelper", "Google Drive API error during restore", e)
+            return@withContext RestoreResult.DOWNLOAD_FAILED
+        } catch (e: IOException) {
+            Log.e("DriveHelper", "Network or I/O error during restore", e)
+            return@withContext RestoreResult.RESTORE_FAILED
+        } catch (e: Exception) {
+            Log.e("DriveHelper", "Unknown error during restore", e)
+            return@withContext RestoreResult.UNKNOWN_ERROR
+        } finally {
+            // Geçici dosyaları ve klasörleri her durumda temizle
+            if (tempZipFile.exists()) tempZipFile.delete()
+            if (tempRestoreDir.exists()) tempRestoreDir.deleteRecursively()
+        }
+    }
+
+    @Throws(IOException::class, ZipException::class)
+    private fun unzip(zipFile: File, targetDirectory: File) {
+        ZipInputStream(zipFile.inputStream().buffered()).use { zis ->
+            var entry: ZipEntry? = zis.nextEntry
+            while (entry != null) {
+                val outputFile = File(targetDirectory, entry.name)
+                if (!outputFile.canonicalPath.startsWith(targetDirectory.canonicalPath)) {
+                    throw SecurityException("Zip Path Traversal Attack detected!")
+                }
+                if (entry.isDirectory) {
+                    outputFile.mkdirs()
+                } else {
                     outputFile.parentFile?.mkdirs()
                     FileOutputStream(outputFile).use { fos ->
                         zis.copyTo(fos)
                     }
-                    zis.closeEntry()
-                    entry = zis.nextEntry
                 }
+                zis.closeEntry()
+                entry = zis.nextEntry
             }
-            true
-        } catch (e: Exception) {
-            Log.e("DriveHelper", "Error during restore", e)
-            cleanLocalData()
-            false
-        } finally {
-            if (zipFile.exists()) zipFile.delete()
         }
     }
 
     suspend fun deleteAllData() = withContext(Dispatchers.IO) {
         try {
             cleanLocalData()
-
             val appFolderId = getAppFolderId() ?: return@withContext
             val query = "'$appFolderId' in parents and name='$backupFileName' and trashed=false"
             val fileList = drive.files().list().setQ(query).setSpaces("drive").setFields("files(id)").execute()
-
             if (fileList.files.isNotEmpty()) {
-                val fileId = fileList.files[0].id
-                drive.files().delete(fileId).execute()
+                drive.files().delete(fileList.files[0].id).execute()
             }
         } catch(e: Exception) {
             Log.e("DriveHelper", "Error deleting all data", e)
@@ -205,9 +254,8 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
 
     private fun cleanLocalData() {
         val archiveDir = File(context.filesDir, "arsiv")
-        if (archiveDir.exists()) {
-            archiveDir.deleteRecursively()
-        }
+        if (archiveDir.exists()) archiveDir.deleteRecursively()
+
         prefsToBackup.forEach { prefName ->
             context.getSharedPreferences(prefName, Context.MODE_PRIVATE).edit().clear().apply()
         }

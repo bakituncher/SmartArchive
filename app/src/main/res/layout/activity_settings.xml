@@ -97,7 +97,7 @@
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp"
                 android:textColor="?attr/colorPrimary"
-                android:text="Google Drive Yedekleme"/>
+                android:text="@string/settings_category_drive"/>
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
@@ -108,82 +108,121 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
+                    android:orientation="vertical">
 
-                    <TextView
-                        android:id="@+id/textViewDriveStatus"
-                        style="@style/TextAppearance.Material3.BodyLarge"
+                    <androidx.constraintlayout.widget.ConstraintLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        tools:text="Giriş yapıldı: example@gmail.com"
-                        app:drawableStartCompat="@drawable/ic_drive_file_move"
-                        android:drawablePadding="16dp"
-                        app:drawableTint="?attr/colorOnSurfaceVariant"/>
+                        android:padding="16dp">
+
+                        <ImageView
+                            android:id="@+id/google_logo"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:src="@drawable/ic_google_logo"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"
+                            android:contentDescription="@string/settings_google_logo_desc"/>
+
+                        <TextView
+                            android:id="@+id/textViewDriveTitle"
+                            style="@style/TextAppearance.Material3.TitleMedium"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="16dp"
+                            android:text="@string/settings_drive_title"
+                            app:layout_constraintStart_toEndOf="@id/google_logo"
+                            app:layout_constraintTop_toTopOf="@id/google_logo"
+                            app:layout_constraintEnd_toEndOf="parent" />
+
+                        <TextView
+                            android:id="@+id/textViewDriveStatus"
+                            style="@style/TextAppearance.Material3.BodyMedium"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            app:layout_constraintStart_toStartOf="@id/textViewDriveTitle"
+                            app:layout_constraintTop_toBottomOf="@id/textViewDriveTitle"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            tools:text="Giriş yapıldı: example@gmail.com" />
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
 
                     <TextView
                         android:id="@+id/textViewLastBackup"
                         style="@style/TextAppearance.Material3.BodySmall"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="48dp"
+                        android:layout_marginHorizontal="16dp"
+                        android:layout_marginBottom="12dp"
                         android:visibility="gone"
+                        android:gravity="center"
+                        android:background="@drawable/background_header"
+                        android:padding="8dp"
+                        app:drawableStartCompat="@drawable/ic_info"
+                        app:drawableTint="?attr/colorOnSurfaceVariant"
+                        android:drawablePadding="8dp"
                         tools:visibility="visible"
-                        tools:text="Son Yedekleme: 11 Temmuz 2025"/>
+                        tools:text="Son Yedekleme: 12 Temmuz 2025"/>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="?attr/colorOutlineVariant"
+                        android:layout_marginHorizontal="16dp"/>
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginTop="16dp">
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/buttonDriveSignInOut"
-                            style="?attr/materialButtonOutlinedStyle"
-                            android:layout_width="0dp"
-                            android:layout_weight="1"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Giriş Yap"/>
+                            android:text="@string/action_sign_in"/>
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/buttonBackup"
-                            android:layout_width="0dp"
-                            android:layout_weight="1"
+                        <LinearLayout
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:enabled="false"
-                            android:text="Yedekle"/>
-                    </LinearLayout>
+                            android:orientation="horizontal"
+                            android:layout_marginTop="8dp">
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginTop="8dp">
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/buttonBackup"
+                                style="?attr/materialButtonOutlinedStyle"
+                                android:layout_width="0dp"
+                                android:layout_weight="1"
+                                android:layout_height="wrap_content"
+                                android:enabled="false"
+                                android:text="@string/action_backup_now"/>
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/buttonRestore"
-                            style="?attr/materialButtonOutlinedStyle"
-                            android:layout_width="0dp"
-                            android:layout_weight="1"
-                            android:layout_height="wrap_content"
-                            android:enabled="false"
-                            android:text="Geri Yükle"/>
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/buttonRestore"
+                                style="?attr/materialButtonOutlinedStyle"
+                                android:layout_width="0dp"
+                                android:layout_weight="1"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:enabled="false"
+                                android:text="@string/action_restore"/>
+                        </LinearLayout>
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/buttonDeleteBackup"
                             style="@style/Widget.Material3.Button.TextButton"
-                            android:layout_width="0dp"
-                            android:layout_weight="1"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
+                            android:layout_marginTop="8dp"
+                            android:layout_gravity="center_horizontal"
                             android:enabled="false"
                             android:textColor="?attr/colorError"
-                            android:text="Verileri Sil"/>
+                            android:text="@string/action_delete_drive_data"/>
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
+
             <TextView
                 style="@style/TextAppearance.Material3.LabelLarge"
                 android:layout_width="wrap_content"
@@ -193,7 +232,6 @@
                 android:paddingEnd="16dp"
                 android:textColor="?attr/colorPrimary"
                 android:text="@string/settings_category_about"/>
-
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"

@@ -96,4 +96,18 @@
 
     <string name="default_web_client_id" translatable="false">66952872464-t3tu9ijl1bum5trhj9k0nt94p61b8aoh.apps.googleusercontent.com</string>
 
+    <string name="settings_category_drive">Google Drive Backup</string>
+    <string name="settings_drive_title">Google Drive</string>
+    <string name="settings_google_logo_desc">Google Logo</string>
+    <string name="action_sign_in">Sign In</string>
+    <string name="action_sign_out">Sign Out</string>
+    <string name="action_backup_now">Backup Now</string>
+    <string name="action_restore">Restore</string>
+    <string name="action_delete_drive_data">Delete Drive Data</string>
+    <string name="status_not_signed_in">Not signed in</string>
+    <string name="status_signed_in_as">Signed in as: %1$s</string>
+    <string name="last_backup_checking">Checking for backup...</string>
+    <string name="last_backup_at">Last backup: %1$s</string>
+    <string name="last_backup_never">No backup has been made before.</string>
+
 </resources>

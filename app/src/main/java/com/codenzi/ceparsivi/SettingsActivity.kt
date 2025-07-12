@@ -41,9 +41,9 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             handleSignInResult(task)
         } else {
             Toast.makeText(this, "Google ile giriş başarısız oldu.", Toast.LENGTH_SHORT).show()
+            setBackupButtonsEnabled(false)
         }
     }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,12 +60,7 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         binding.textViewPrivacyPolicy.setOnClickListener { openPrivacyPolicyLink() }
 
         binding.buttonDriveSignInOut.setOnClickListener {
-            val account = GoogleSignIn.getLastSignedInAccount(this)
-            if (account == null) {
-                signIn()
-            } else {
-                signOut()
-            }
+            if (GoogleSignIn.getLastSignedInAccount(this) == null) signIn() else signOut()
         }
 
         binding.buttonBackup.setOnClickListener { backupData() }
@@ -88,8 +83,7 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
     }
 
     private fun signIn() {
-        val signInIntent = googleSignInClient.signInIntent
-        signInLauncher.launch(signInIntent)
+        signInLauncher.launch(googleSignInClient.signInIntent)
     }
 
     private fun signOut() {
@@ -104,7 +98,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             val account = completedTask.getResult(ApiException::class.java)!!
             Toast.makeText(this, "Hoşgeldin, ${account.displayName}", Toast.LENGTH_SHORT).show()
             updateUI(account)
-            // KESİN ÇÖZÜM: Giriş yapılır yapılmaz yedek kontrolünü tetikle.
             checkBackupAndPrompt(account)
         } catch (e: ApiException) {
             Log.w("SignIn", "signInResult:failed code=" + e.statusCode)
@@ -114,53 +107,49 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
 
     private fun updateUI(account: GoogleSignInAccount?) {
         if (account != null) {
-            binding.textViewDriveStatus.text = "Giriş yapıldı: ${account.email}"
-            binding.buttonDriveSignInOut.text = "Çıkış Yap"
-            binding.buttonBackup.isEnabled = true
-            binding.buttonRestore.isEnabled = true
-            binding.buttonDeleteBackup.isEnabled = true
+            binding.textViewDriveStatus.text = getString(R.string.status_signed_in_as, account.email)
+            binding.buttonDriveSignInOut.text = getString(R.string.action_sign_out)
+            setBackupButtonsEnabled(true)
             driveHelper = GoogleDriveHelper(this, account)
-            // Yedek tarihini her zaman göster
             checkLastBackup()
-
         } else {
-            binding.textViewDriveStatus.text = "Giriş yapılmadı"
+            binding.textViewDriveStatus.text = getString(R.string.status_not_signed_in)
             binding.textViewLastBackup.visibility = View.GONE
-            binding.buttonDriveSignInOut.text = "Giriş Yap"
-            binding.buttonBackup.isEnabled = false
-            binding.buttonRestore.isEnabled = false
-            binding.buttonDeleteBackup.isEnabled = false
+            binding.buttonDriveSignInOut.text = getString(R.string.action_sign_in)
+            setBackupButtonsEnabled(false)
             driveHelper = null
         }
     }
 
+    private fun setBackupButtonsEnabled(isEnabled: Boolean) {
+        binding.buttonBackup.isEnabled = isEnabled
+        binding.buttonRestore.isEnabled = isEnabled
+        binding.buttonDeleteBackup.isEnabled = isEnabled
+    }
+
     private fun checkLastBackup() {
-        binding.textViewLastBackup.text = "Yedek kontrol ediliyor..."
+        binding.textViewLastBackup.text = getString(R.string.last_backup_checking)
         binding.textViewLastBackup.visibility = View.VISIBLE
         lifecycleScope.launch {
             val backupMetadata = driveHelper?.getBackupMetadata()
             withContext(Dispatchers.Main) {
                 binding.textViewLastBackup.text = if (backupMetadata != null) {
-                    val date = Date(backupMetadata.second)
-                    val formattedDate = SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale.getDefault()).format(date)
-                    "Son Yedekleme: $formattedDate"
+                    val formattedDate = SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale.getDefault()).format(Date(backupMetadata.second))
+                    getString(R.string.last_backup_at, formattedDate)
                 } else {
-                    "Daha önce yedek alınmamış."
+                    getString(R.string.last_backup_never)
                 }
             }
         }
     }
 
-    // YENİ VE AKILLI: Yedek kontrol ve sorma mantığı
     private fun checkBackupAndPrompt(account: GoogleSignInAccount) {
         val localDriveHelper = GoogleDriveHelper(this, account)
         lifecycleScope.launch {
             val backupMetadata = localDriveHelper.getBackupMetadata() ?: return@launch
-
             val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
             val lastPromptedTimestamp = prefs.getLong("last_prompted_timestamp_${account.id}", 0L)
 
-            // Sadece daha önce sorulmamış VEYA daha yeni bir yedek varsa sor.
             if (backupMetadata.second > lastPromptedTimestamp) {
                 withContext(Dispatchers.Main) {
                     showRestorePromptDialog(backupMetadata.second, account.id!!)
@@ -170,24 +159,18 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
     }
 
     private fun showRestorePromptDialog(backupTimestamp: Long, accountId: String) {
-        val date = Date(backupTimestamp)
-        val formattedDate = SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale.getDefault()).format(date)
-
+        val formattedDate = SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale.getDefault()).format(Date(backupTimestamp))
         AlertDialog.Builder(this)
             .setTitle("Yedek Bulundu")
             .setMessage("$formattedDate tarihli bir yedeğiniz bulundu. Verilerinizi şimdi geri yüklemek ister misiniz?")
-            .setPositiveButton("Evet, Geri Yükle") { _, _ ->
-                performRestore()
-            }
+            .setPositiveButton("Evet, Geri Yükle") { _, _ -> performRestore() }
             .setNegativeButton("Hayır, Teşekkürler", null)
             .setOnDismissListener {
-                // Kullanıcı ne cevap verirse versin, bu yedek için tekrar sorma.
                 val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
                 prefs.edit { putLong("last_prompted_timestamp_${accountId}", backupTimestamp) }
             }
             .show()
     }
-
 
     private fun backupData() {
         val dialog = AlertDialog.Builder(this)
@@ -195,16 +178,18 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             .setMessage("Verileriniz Google Drive'a yedekleniyor. Lütfen bekleyin...")
             .setCancelable(false)
             .show()
+        setBackupButtonsEnabled(false)
 
         lifecycleScope.launch {
             val result = driveHelper?.backupData()
             withContext(Dispatchers.Main) {
                 dialog.dismiss()
+                setBackupButtonsEnabled(true)
                 if (result == true) {
                     Toast.makeText(this@SettingsActivity, "Yedekleme başarıyla tamamlandı!", Toast.LENGTH_LONG).show()
                     checkLastBackup()
                 } else {
-                    Toast.makeText(this@SettingsActivity, "Yedekleme sırasında bir hata oluştu.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@SettingsActivity, "Yedekleme sırasında bir hata oluştu. Lütfen internet bağlantınızı kontrol edin.", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -214,9 +199,7 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         AlertDialog.Builder(this)
             .setTitle("Verileri Geri Yükle")
             .setMessage("Mevcut tüm verileriniz silinecek ve son yedeklemedeki verilerle değiştirilecektir. Bu işlem geri alınamaz. Onaylıyor musunuz?")
-            .setPositiveButton("Evet, Geri Yükle") { _, _ ->
-                performRestore()
-            }
+            .setPositiveButton("Evet, Geri Yükle") { _, _ -> performRestore() }
             .setNegativeButton("İptal", null)
             .show()
     }
@@ -224,39 +207,55 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
     private fun performRestore() {
         val dialog = AlertDialog.Builder(this)
             .setTitle("Geri Yükleniyor")
-            .setMessage("Verileriniz geri yükleniyor. Lütfen bekleyin...")
+            .setMessage("Yedekleriniz indiriliyor, lütfen bekleyin...")
             .setCancelable(false)
             .show()
+        setBackupButtonsEnabled(false)
 
         lifecycleScope.launch {
             val result = driveHelper?.restoreData()
             withContext(Dispatchers.Main) {
                 dialog.dismiss()
-                if (result == true) {
-                    CategoryManager.invalidate()
-                    FileHashManager.invalidate()
+                setBackupButtonsEnabled(true)
 
-                    Toast.makeText(this@SettingsActivity, "Veriler başarıyla geri yüklendi. Uygulama yeniden başlatılıyor.", Toast.LENGTH_LONG).show()
-
-                    val intent = packageManager.getLaunchIntentForPackage(packageName)!!
-                    val componentName = intent.component!!
-                    val mainIntent = Intent.makeRestartActivityTask(componentName)
-                    startActivity(mainIntent)
-                    Runtime.getRuntime().exit(0)
-                } else {
-                    Toast.makeText(this@SettingsActivity, "Geri yükleme sırasında bir hata oluştu.", Toast.LENGTH_LONG).show()
+                when (result) {
+                    RestoreResult.SUCCESS -> {
+                        CategoryManager.invalidate()
+                        FileHashManager.invalidate()
+                        Toast.makeText(this@SettingsActivity, "Veriler başarıyla geri yüklendi. Uygulama yeniden başlatılıyor.", Toast.LENGTH_LONG).show()
+                        restartApp()
+                    }
+                    RestoreResult.NO_BACKUP_FOUND -> showRestoreError("Geri yüklenecek bir yedek bulunamadı.")
+                    RestoreResult.DOWNLOAD_FAILED -> showRestoreError("Yedek indirilemedi. İnternet bağlantınızı veya Google Drive izinlerinizi kontrol edin.")
+                    RestoreResult.VALIDATION_FAILED -> showRestoreError("Yedek dosyası bozuk veya geçersiz. Lütfen yeni bir yedek almayı deneyin.")
+                    RestoreResult.RESTORE_FAILED -> showRestoreError("Dosyalar geri yüklenemedi. Cihazınızda yeterli alan olduğundan emin olun.")
+                    else -> showRestoreError("Bilinmeyen bir hata oluştu. Lütfen daha sonra tekrar deneyin.")
                 }
             }
         }
+    }
+
+    private fun showRestoreError(message: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Geri Yükleme Başarısız")
+            .setMessage(message)
+            .setPositiveButton("Tamam", null)
+            .show()
+    }
+
+    private fun restartApp() {
+        val intent = packageManager.getLaunchIntentForPackage(packageName)!!
+        val componentName = intent.component!!
+        val mainIntent = Intent.makeRestartActivityTask(componentName)
+        startActivity(mainIntent)
+        Runtime.getRuntime().exit(0)
     }
 
     private fun showDeleteConfirmationDialog() {
         AlertDialog.Builder(this)
             .setTitle("Tüm Verileri Sil")
             .setMessage("Bu işlem, hem bu cihazdaki tüm arşivlenmiş dosyalarınızı hem de Google Drive'daki yedeğinizi kalıcı olarak silecektir. Bu işlem geri alınamaz. Emin misiniz?")
-            .setPositiveButton("Evet, Hepsini Sil") { _, _ ->
-                deleteAllData()
-            }
+            .setPositiveButton("Evet, Hepsini Sil") { _, _ -> deleteAllData() }
             .setNegativeButton("İptal", null)
             .show()
     }
@@ -277,6 +276,8 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             }
         }
     }
+
+    // ----- KATEGORİ YÖNETİMİ FONKSİYONLARI -----
 
     override fun onCategorySaved(newName: String, oldName: String?) {
         if (oldName == null) {
@@ -306,7 +307,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
                 if (currentThemeValue != selectedThemeMode.value) {
                     ThemeManager.setTheme(this, selectedThemeMode)
                     ThemeManager.applyTheme(selectedThemeMode.value)
-                    recreate()
                 }
                 dialog.dismiss()
             }

@@ -92,6 +92,20 @@
     <string name="settings_category_general">Genel</string>
     <string name="settings_category_about">Hakkında</string>
 
+    <string name="settings_category_drive">Google Drive Yedekleme</string>
+    <string name="settings_drive_title">Google Drive</string>
+    <string name="settings_google_logo_desc">Google Logosu</string>
+    <string name="action_sign_in">Giriş Yap</string>
+    <string name="action_sign_out">Çıkış Yap</string>
+    <string name="action_backup_now">Şimdi Yedekle</string>
+    <string name="action_restore">Geri Yükle</string>
+    <string name="action_delete_drive_data">Drive\'daki Verileri Sil</string>
+    <string name="status_not_signed_in">Giriş yapılmadı</string>
+    <string name="status_signed_in_as">Giriş yapıldı: %1$s</string>
+    <string name="last_backup_checking">Yedek kontrol ediliyor...</string>
+    <string name="last_backup_at">Son Yedekleme: %1$s</string>
+    <string name="last_backup_never">Daha önce yedek alınmamış.</string>
+
 
 
 </resources>
