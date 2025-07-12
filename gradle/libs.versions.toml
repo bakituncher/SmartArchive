@@ -1,5 +1,4 @@
 [versions]
-# DÜZELTME: Tüm kütüphaneler ve eklentiler en son kararlı (stable) sürümlere güncellendi.
 agp = "8.5.0"
 kotlin = "1.9.23"
 coreKtx = "1.13.1"
@@ -14,6 +13,13 @@ splashscreen = "1.0.1"
 lifecycle = "2.8.2"
 recyclerview = "1.3.2"
 glide = "4.16.0"
+googleServices = "4.4.2"
+playServicesAuth = "21.2.0"
+googleApiServicesDrive = "v3-rev20230822-2.0.0"
+googleApiClient = "2.2.0"
+# YENİ EKLENDİ - Önemli
+googleAuthLibrary = "1.23.0"
+
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -30,7 +36,18 @@ androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecyc
 glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide"}
 glide-compiler = { group = "com.github.bumptech.glide", name = "compiler", version.ref = "glide"}
 
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
+
+google-api-services-drive = { group = "com.google.apis", name = "google-api-services-drive", version.ref = "googleApiServicesDrive" }
+google-api-client = { group = "com.google.api-client", name = "google-api-client", version.ref = "googleApiClient" }
+google-api-client-android = { group = "com.google.api-client", name = "google-api-client-android", version.ref = "googleApiClient" }
+google-api-client-gson = { group = "com.google.api-client", name = "google-api-client-gson", version.ref = "googleApiClient" }
+# YENİ EKLENDİ - Kimlik doğrulama için eksik kütüphane
+google-auth-library-oauth2-http = { group = "com.google.auth", name = "google-auth-library-oauth2-http", version.ref = "googleAuthLibrary" }
+
+
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }

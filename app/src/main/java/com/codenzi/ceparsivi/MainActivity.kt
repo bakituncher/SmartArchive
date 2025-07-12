@@ -29,6 +29,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.codenzi.ceparsivi.databinding.ActivityMainBinding
+import com.google.android.gms.auth.api.signin.GoogleSignIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -130,13 +131,55 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         setSupportActionBar(binding.toolbar)
         setupRecyclerView()
 
-        // **HATA DÜZELTİLDİ:** Eski çoklu FAB mantığı yerine tek butona tıklama olayı eklendi.
         binding.buttonAddFile.setOnClickListener {
             showAddOptionsDialog()
         }
+
+        // YENİ EKLENDİ: Yedek kontrolü
+        checkAndPromptForRestore()
     }
 
-    // **YENİ EKLENDİ:** Dosya ekleme seçeneklerini gösteren modern dialog.
+    private fun checkAndPromptForRestore() {
+        val account = GoogleSignIn.getLastSignedInAccount(this)
+        if (account != null) {
+            val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
+            val restorePromptShown = prefs.getBoolean("restorePromptShown_for_${account.id}", false)
+
+            if(!restorePromptShown) {
+                lifecycleScope.launch {
+                    val driveHelper = GoogleDriveHelper(this@MainActivity, account)
+                    val backupDate = driveHelper.getBackupDate()
+                    if (backupDate != null) {
+                        withContext(Dispatchers.Main) {
+                            showRestorePromptDialog(backupDate)
+                        }
+                    } else {
+                        // Eğer yedek yoksa bile, bu sorgunun yapıldığını işaretle ki her açılışta sormasın.
+                        prefs.edit { putBoolean("restorePromptShown_for_${account.id}", true) }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showRestorePromptDialog(backupDate: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Yedek Bulundu")
+            .setMessage("$backupDate tarihli bir yedeğiniz bulundu. Verilerinizi şimdi geri yüklemek ister misiniz?")
+            .setPositiveButton("Evet, Ayarlara Git") { _, _ ->
+                val intent = Intent(this, SettingsActivity::class.java)
+                startActivity(intent)
+                Toast.makeText(this, "Lütfen Ayarlar menüsünden 'Geri Yükle' butonunu kullanın.", Toast.LENGTH_LONG).show()
+            }
+            .setNegativeButton("Hayır, Teşekkürler", null)
+            .setOnDismissListener {
+                val account = GoogleSignIn.getLastSignedInAccount(this)
+                val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
+                prefs.edit { putBoolean("restorePromptShown_for_${account?.id}", true) }
+            }
+            .show()
+    }
+
     private fun showAddOptionsDialog() {
         val options = arrayOf(
             getString(R.string.option_take_photo),
