@@ -167,8 +167,8 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
     }
 
     /**
-     * DÜZELTME: Fonksiyon, tek satırlık ifade (=) yerine blok gövde ({}) kullanacak şekilde değiştirildi.
-     * Bu değişiklik, içindeki `if` ifadelerinin bir değer döndürme zorunluluğunu ortadan kaldırarak derleme hatasını giderir.
+     * DÜZELTME: Fonksiyon, içindeki 'if' ifadelerinin bir değer döndürme zorunluluğunu ortadan kaldıracak şekilde düzeltildi.
+     * Derleme hatasını gidermek için 'if' bloklarının sonuna açıkça Unit döndürülüyor.
      */
     suspend fun deleteAllData() {
         withContext(Dispatchers.IO) {
@@ -183,8 +183,10 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
                         drive.files().delete(fileId).execute()
                     }
                 }
+                Unit // <-- Bu satır eklendi
             } catch (e: Exception) {
                 Log.e("DriveHelper", "Error deleting all data", e)
+                Unit // <-- Bu satır eklendi
             }
         }
     }
