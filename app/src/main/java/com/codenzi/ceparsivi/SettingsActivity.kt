@@ -146,6 +146,17 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
     }
 
     private fun backupData() {
+        // Check if there's any data to backup
+        val archiveDir = java.io.File(filesDir, "arsiv")
+        if (!archiveDir.exists() || archiveDir.listFiles().isNullOrEmpty()) {
+            AlertDialog.Builder(this)
+                .setTitle("Yedek Alınacak Veri Yok")
+                .setMessage("Henüz arşivlenmiş dosyanız bulunmuyor. Önce bazı dosyaları arşivleyin.")
+                .setPositiveButton("Tamam", null)
+                .show()
+            return
+        }
+
         val dialog = AlertDialog.Builder(this)
             .setTitle("Yedekleme Başlatılıyor")
             .setMessage("Verileriniz Google Drive'a yedekleniyor. Lütfen bekleyin...")
@@ -153,28 +164,65 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             .show()
 
         lifecycleScope.launch {
-            val result = driveHelper?.backupData()
-            withContext(Dispatchers.Main) {
-                dialog.dismiss()
-                if (result == true) {
-                    Toast.makeText(this@SettingsActivity, "Yedekleme başarıyla tamamlandı!", Toast.LENGTH_LONG).show()
-                    checkLastBackup()
-                } else {
-                    Toast.makeText(this@SettingsActivity, "Yedekleme sırasında bir hata oluştu.", Toast.LENGTH_LONG).show()
+            try {
+                val result = driveHelper?.backupData()
+                withContext(Dispatchers.Main) {
+                    dialog.dismiss()
+                    if (result == true) {
+                        Toast.makeText(this@SettingsActivity, "Yedekleme başarıyla tamamlandı!", Toast.LENGTH_LONG).show()
+                        checkLastBackup()
+                    } else {
+                        showBackupErrorDialog()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("SettingsActivity", "Backup error: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    dialog.dismiss()
+                    showBackupErrorDialog()
                 }
             }
         }
     }
 
-    private fun restoreData() {
+    private fun showBackupErrorDialog() {
         AlertDialog.Builder(this)
-            .setTitle("Verileri Geri Yükle")
-            .setMessage("Mevcut tüm verileriniz silinecek ve son yedeklemedeki verilerle değiştirilecektir. Bu işlem geri alınamaz. Onaylıyor musunuz?")
-            .setPositiveButton("Evet, Geri Yükle") { _, _ ->
-                performRestore()
+            .setTitle("Yedekleme Hatası")
+            .setMessage("Yedekleme sırasında bir hata oluştu. Lütfen aşağıdakileri kontrol edin:\n\n" +
+                    "• İnternet bağlantınızın çalıştığından emin olun\n" +
+                    "• Google Drive hesabınızda yeterli alan olduğundan emin olun\n" +
+                    "• Uygulamayı yeniden başlatıp tekrar deneyin")
+            .setPositiveButton("Tamam", null)
+            .setNegativeButton("Ayarları Kontrol Et") { _, _ ->
+                // Optional: Add code to open device settings
             }
-            .setNegativeButton("İptal", null)
             .show()
+    }
+
+    private fun restoreData() {
+        // First check if there's a backup available
+        lifecycleScope.launch {
+            val backupDate = driveHelper?.getBackupDate()
+            withContext(Dispatchers.Main) {
+                if (backupDate == null) {
+                    AlertDialog.Builder(this@SettingsActivity)
+                        .setTitle("Yedek Bulunamadı")
+                        .setMessage("Geri yüklenecek yedek bulunamadı. Önce bir yedek alın.")
+                        .setPositiveButton("Tamam", null)
+                        .show()
+                    return@withContext
+                }
+
+                AlertDialog.Builder(this@SettingsActivity)
+                    .setTitle("Verileri Geri Yükle")
+                    .setMessage("$backupDate tarihli yedek bulundu.\n\nMevcut tüm verileriniz silinecek ve son yedeklemedeki verilerle değiştirilecektir. Bu işlem geri alınamaz.\n\nOnaylıyor musunuz?")
+                    .setPositiveButton("Evet, Geri Yükle") { _, _ ->
+                        performRestore()
+                    }
+                    .setNegativeButton("İptal", null)
+                    .show()
+            }
+        }
     }
 
     private fun performRestore() {
@@ -185,22 +233,50 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             .show()
 
         lifecycleScope.launch {
-            val result = driveHelper?.restoreData()
-            withContext(Dispatchers.Main) {
-                dialog.dismiss()
-                if (result == true) {
-                    Toast.makeText(this@SettingsActivity, "Veriler başarıyla geri yüklendi. Uygulama yeniden başlatılacak.", Toast.LENGTH_LONG).show()
-                    // Uygulamayı yeniden başlat
-                    val intent = packageManager.getLaunchIntentForPackage(packageName)
-                    val componentName = intent!!.component
-                    val mainIntent = Intent.makeRestartActivityTask(componentName)
-                    startActivity(mainIntent)
-                    Runtime.getRuntime().exit(0)
-                } else {
-                    Toast.makeText(this@SettingsActivity, "Geri yükleme sırasında bir hata oluştu.", Toast.LENGTH_LONG).show()
+            try {
+                val result = driveHelper?.restoreData()
+                withContext(Dispatchers.Main) {
+                    dialog.dismiss()
+                    if (result == true) {
+                        AlertDialog.Builder(this@SettingsActivity)
+                            .setTitle("Geri Yükleme Başarılı")
+                            .setMessage("Veriler başarıyla geri yüklendi. Değişikliklerin etkili olması için uygulama yeniden başlatılacak.")
+                            .setPositiveButton("Yeniden Başlat") { _, _ ->
+                                restartApp()
+                            }
+                            .setCancelable(false)
+                            .show()
+                    } else {
+                        showRestoreErrorDialog()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("SettingsActivity", "Restore error: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    dialog.dismiss()
+                    showRestoreErrorDialog()
                 }
             }
         }
+    }
+
+    private fun showRestoreErrorDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Geri Yükleme Hatası")
+            .setMessage("Geri yükleme sırasında bir hata oluştu. Mevcut verileriniz korundu. Lütfen aşağıdakileri kontrol edin:\n\n" +
+                    "• İnternet bağlantınızın çalıştığından emin olun\n" +
+                    "• Google Drive hesabınızın erişilebilir olduğundan emin olun\n" +
+                    "• Uygulamayı yeniden başlatıp tekrar deneyin")
+            .setPositiveButton("Tamam", null)
+            .show()
+    }
+
+    private fun restartApp() {
+        val intent = packageManager.getLaunchIntentForPackage(packageName)
+        val componentName = intent!!.component
+        val mainIntent = Intent.makeRestartActivityTask(componentName)
+        startActivity(mainIntent)
+        Runtime.getRuntime().exit(0)
     }
 
     private fun showDeleteConfirmationDialog() {

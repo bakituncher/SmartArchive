@@ -44,7 +44,7 @@ android {
     }
 
     // Bağımlılık çakışmalarını önlemek için paketleme seçenekleri
-    packagingOptions {
+    packaging {
         resources.excludes.add("META-INF/DEPENDENCIES")
         resources.excludes.add("META-INF/LICENSE")
         resources.excludes.add("META-INF/LICENSE.txt")
