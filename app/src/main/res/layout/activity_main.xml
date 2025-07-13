@@ -80,39 +80,13 @@
         app:tint="?attr/colorOnPrimaryContainer"
         app:elevation="6dp" />
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/onboardingOverlay"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#E61A1C1E"
-        android:clickable="true"
-        android:focusable="true"
-        android:visibility="gone"
-        tools:visibility="gone"> <ImageView
-        android:id="@+id/onboardingImageView"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:contentDescription="@string/onboarding_image_description"
-        android:padding="48dp"
-        android:scaleType="fitCenter"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/closeOnboardingButton"
-            style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_margin="16dp"
-            android:text="@string/action_close"
-            app:icon="@drawable/ic_close"
-            app:iconTint="@android:color/white"
-            android:textColor="@android:color/white"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
+    <com.google.android.gms.ads.AdView
+        xmlns:ads="http://schemas.android.com/apk/res-auto"
+        android:id="@+id/adView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        ads:adSize="BANNER"
+        ads:adUnitId="ca-app-pub-1946344990254156/8544560578">
+    </com.google.android.gms.ads.AdView>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -18,8 +18,6 @@ import androidx.appcompat.view.ActionMode
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import androidx.core.content.edit
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -29,6 +27,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.codenzi.ceparsivi.databinding.ActivityMainBinding
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -45,13 +45,12 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     private var actionMode: ActionMode? = null
     private var currentSortOrder = SortOrder.DATE_DESC
     private var currentViewMode = ViewMode.LIST
+    private lateinit var adView: AdView
 
     private val keyViewMode = "key_view_mode"
     private var activeTheme: String? = null
     private val fileUrisToProcess = ArrayDeque<Uri>()
-
     private var latestTmpUri: Uri? = null
-
     private var pendingCameraAction: (() -> Unit)? = null
 
     private enum class SortOrder {
@@ -98,19 +97,20 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Bu Activity artık başlangıç ekranı olmadığı için splashScreen'i buradan yönetmeye gerek yok.
         super.onCreate(savedInstanceState)
-
         WindowCompat.setDecorFitsSystemWindows(window, false)
-
         activeTheme = ThemeManager.getTheme(this)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        adView = binding.adView
+        val adRequest = AdRequest.Builder().build()
+        adView.loadAd(adRequest)
+
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             binding.appBarLayout.updatePadding(top = systemBars.top)
-            binding.recyclerViewFiles.setPadding(0, 0, 0, systemBars.bottom)
+            binding.recyclerViewFiles.setPadding(0, 0, 0, systemBars.bottom + adView.height)
             view.updatePadding(left = systemBars.left, right = systemBars.right)
             insets
         }
@@ -132,6 +132,31 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         binding.buttonAddFile.setOnClickListener {
             showAddOptionsDialog()
         }
+    }
+
+    // ... Diğer tüm fonksiyonlar aynı kalacak ...
+    // ... onResume, onPause, onDestroy gibi Activity lifecycle metodları eklendi.
+
+    override fun onResume() {
+        super.onResume()
+        adView.resume()
+        val newTheme = ThemeManager.getTheme(this)
+        if (activeTheme != null && activeTheme != newTheme) {
+            ThemeManager.applyTheme(newTheme)
+            recreate()
+            return
+        }
+        lifecycleScope.launch { updateFullList() }
+    }
+
+    override fun onPause() {
+        adView.pause()
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        adView.destroy()
+        super.onDestroy()
     }
 
     private fun showAddOptionsDialog() {
@@ -213,17 +238,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         saveActivityLauncher.launch(intent)
-    }
-
-    override fun onResume() {
-        super.onResume()
-        val newTheme = ThemeManager.getTheme(this)
-        if (activeTheme != null && activeTheme != newTheme) {
-            ThemeManager.applyTheme(newTheme)
-            recreate()
-            return
-        }
-        lifecycleScope.launch { updateFullList() }
     }
 
     override fun onNewIntent(intent: Intent) {

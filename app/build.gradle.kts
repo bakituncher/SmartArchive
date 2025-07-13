@@ -16,14 +16,14 @@ android {
         applicationId = "com.codenzi.ceparsivi"
         minSdk = 24
         targetSdk = 35
-        versionCode = 2 // Versiyonu bir daha artıralım
-        versionName = "1.0.1"
+        versionCode = 7
+        versionName = "3.0-admob"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false // Derleme garantisi için şimdilik kapalı
+            isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -43,7 +43,6 @@ android {
         viewBinding = true
     }
 
-    // Bağımlılık çakışmalarını önlemek için paketleme seçenekleri
     packagingOptions {
         resources.excludes.add("META-INF/DEPENDENCIES")
         resources.excludes.add("META-INF/LICENSE")
@@ -74,16 +73,19 @@ dependencies {
     implementation("com.github.bumptech.glide:glide:4.16.0")
     kapt("com.github.bumptech.glide:compiler:4.16.0")
 
-    // --- Google Sign-In & Drive BAĞIMLILIKLARI (EN GARANTİ YÖNTEM) ---
+    // Google Sign-In & Drive
     implementation("com.google.android.gms:play-services-auth:21.2.0")
-
-    // Bu kütüphaneler, birbiriyle uyumlu ve bilinen versiyonlardır.
     implementation("com.google.http-client:google-http-client-gson:1.43.3")
     implementation("com.google.api-client:google-api-client-android:2.2.0")
     implementation("com.google.apis:google-api-services-drive:v3-rev20220815-2.0.0")
 
-    // YENİ EKLENDİ: Otomatik Yedekleme için WorkManager
+    // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.0")
+
+    // YENİ EKLENDİ: Google Mobile Ads (AdMob)
+    implementation("com.google.android.gms:play-services-ads:23.1.0")
+    implementation("com.google.android.ump:user-messaging-platform:2.2.0")
+    implementation("com.google.android.gms:play-services-ads:23.1.0")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

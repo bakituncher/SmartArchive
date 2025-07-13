@@ -25,6 +25,10 @@
         android:theme="@style/Theme.CepArsivi"
         tools:targetApi="34">
 
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-1946344990254156~8544560578"/>
+
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"
@@ -46,22 +50,18 @@
             android:name=".MainActivity"
             android:exported="false"
             android:theme="@style/Theme.CepArsivi" />
-
         <activity
             android:name=".IntroActivity"
             android:exported="false"
             android:theme="@style/Theme.CepArsivi"/>
-
         <activity
             android:name=".LoginSuggestionActivity"
             android:exported="false"
             android:theme="@style/Theme.CepArsivi"/>
-
         <activity
             android:name=".SettingsActivity"
             android:theme="@style/Theme.CepArsivi"
             android:parentActivityName=".MainActivity"/>
-
         <activity
             android:name=".SaveFileActivity"
             android:exported="true"
@@ -72,7 +72,6 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
-
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
@@ -82,7 +81,5 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/provider_paths" />
         </provider>
-
     </application>
-
 </manifest>
