@@ -94,7 +94,7 @@
     <string name="settings_category_general">General</string>
     <string name="settings_category_about">About</string>
 
-    <string name="default_web_client_id" translatable="false">66952872464-t3tu9ijl1bum5trhj9k0nt94p61b8aoh.apps.googleusercontent.com</string>
+    <string name="default_web_client_id" translatable="false">652748206960-nqkl4ph5dqllv769o214fhocb9avh5pc.apps.googleusercontent.com</string>
 
     <string name="settings_category_drive">Google Drive Backup</string>
     <string name="settings_drive_title">Google Drive</string>
@@ -144,5 +144,7 @@
     <string name="restoring_data_title">Restoring Data</string>
     <string name="restoring_data_message">Please wait while your data is being restored...</string>
     <string name="checking_backup_message">Checking for existing backups...</string>
+    <string name="admob_interstitial_ad_unit_id" translatable="false">ca-app-pub-3940256099942544/1033173712</string>
+    <string name="admob_banner_ad_unit_id" translatable="false">ca-app-pub-3940256099942544/6300978111</string>
 
 </resources>

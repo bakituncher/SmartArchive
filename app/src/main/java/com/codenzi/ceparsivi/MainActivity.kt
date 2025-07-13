@@ -6,7 +6,10 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.util.DisplayMetrics
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.webkit.MimeTypeMap
@@ -28,7 +31,12 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.codenzi.ceparsivi.databinding.ActivityMainBinding
 import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
+import com.google.android.gms.ads.FullScreenContentCallback
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -41,17 +49,19 @@ import java.util.Locale
 class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, ActionMode.Callback, FileDetailsBottomSheet.FileDetailsListener {
 
     private lateinit var binding: ActivityMainBinding
+    private var adView: AdView? = null
     private lateinit var fileAdapter: ArchivedFileAdapter
     private var actionMode: ActionMode? = null
     private var currentSortOrder = SortOrder.DATE_DESC
     private var currentViewMode = ViewMode.LIST
-    private lateinit var adView: AdView
-
     private val keyViewMode = "key_view_mode"
     private var activeTheme: String? = null
     private val fileUrisToProcess = ArrayDeque<Uri>()
     private var latestTmpUri: Uri? = null
     private var pendingCameraAction: (() -> Unit)? = null
+
+    private var mInterstitialAd: InterstitialAd? = null
+    private val tag = "MainActivity"
 
     private enum class SortOrder {
         DATE_DESC, NAME_ASC, NAME_DESC, SIZE_ASC, SIZE_DESC
@@ -103,15 +113,14 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        adView = binding.adView
-        val adRequest = AdRequest.Builder().build()
-        adView.loadAd(adRequest)
+        loadBanner()
+        loadInterstitialAd()
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             binding.appBarLayout.updatePadding(top = systemBars.top)
-            binding.recyclerViewFiles.setPadding(0, 0, 0, systemBars.bottom + adView.height)
-            view.updatePadding(left = systemBars.left, right = systemBars.right)
+            view.updatePadding(left = systemBars.left, right = systemBars.right, bottom = systemBars.bottom)
+            binding.recyclerViewFiles.setPadding(0, 0, 0, 0)
             insets
         }
 
@@ -134,12 +143,9 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         }
     }
 
-    // ... Diğer tüm fonksiyonlar aynı kalacak ...
-    // ... onResume, onPause, onDestroy gibi Activity lifecycle metodları eklendi.
-
     override fun onResume() {
         super.onResume()
-        adView.resume()
+        adView?.resume()
         val newTheme = ThemeManager.getTheme(this)
         if (activeTheme != null && activeTheme != newTheme) {
             ThemeManager.applyTheme(newTheme)
@@ -150,22 +156,84 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     }
 
     override fun onPause() {
-        adView.pause()
         super.onPause()
+        adView?.pause()
     }
 
     override fun onDestroy() {
-        adView.destroy()
         super.onDestroy()
+        adView?.destroy()
     }
 
+    // --- REKLAM FONKSİYONLARI (TÜM ANDROID SÜRÜMLERİ İÇİN DÜZELTİLDİ) ---
+    private fun loadBanner() {
+        adView = AdView(this)
+        binding.adViewContainer.addView(adView)
+
+        val adRequest = AdRequest.Builder().build()
+
+        val adWidth = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val windowMetrics = windowManager.currentWindowMetrics
+            (windowMetrics.bounds.width() / resources.displayMetrics.density).toInt()
+        } else {
+            @Suppress("DEPRECATION")
+            val displayMetrics = DisplayMetrics()
+            @Suppress("DEPRECATION")
+            windowManager.defaultDisplay.getMetrics(displayMetrics)
+            (displayMetrics.widthPixels / resources.displayMetrics.density).toInt()
+        }
+
+        val adSize = AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(this, adWidth)
+        adView?.adUnitId = getString(R.string.admob_banner_ad_unit_id)
+        adView?.setAdSize(adSize)
+        adView?.loadAd(adRequest)
+    }
+
+    private fun loadInterstitialAd() {
+        val adRequest = AdRequest.Builder().build()
+        val adUnitId = getString(R.string.admob_interstitial_ad_unit_id)
+        InterstitialAd.load(this, adUnitId, adRequest, object : InterstitialAdLoadCallback() {
+            override fun onAdFailedToLoad(adError: LoadAdError) {
+                Log.d(tag, adError.toString())
+                mInterstitialAd = null
+            }
+
+            override fun onAdLoaded(interstitialAd: InterstitialAd) {
+                Log.d(tag, "Ad was loaded.")
+                mInterstitialAd = interstitialAd
+            }
+        })
+    }
+
+    private fun showInterstitialAd() {
+        if (mInterstitialAd != null) {
+            mInterstitialAd?.show(this)
+            mInterstitialAd?.fullScreenContentCallback = object: FullScreenContentCallback() {
+                override fun onAdDismissedFullScreenContent() {
+                    Log.d(tag, "Ad was dismissed.")
+                    loadInterstitialAd()
+                }
+                override fun onAdFailedToShowFullScreenContent(adError: com.google.android.gms.ads.AdError) {
+                    Log.d(tag, "Ad failed to show.")
+                }
+                override fun onAdShowedFullScreenContent() {
+                    Log.d(tag, "Ad showed fullscreen content.")
+                    mInterstitialAd = null
+                }
+            }
+        } else {
+            Log.d(tag, "The interstitial ad wasn't ready yet.")
+            loadInterstitialAd()
+        }
+    }
+
+    // --- DİĞER FONKSİYONLAR (DEĞİŞİKLİK YOK) ---
     private fun showAddOptionsDialog() {
         val options = arrayOf(
             getString(R.string.option_take_photo),
             getString(R.string.option_record_video),
             getString(R.string.option_from_local_files)
         )
-
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.add_file_dialog_title))
             .setItems(options) { _, which ->
@@ -180,9 +248,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     private fun checkCameraPermissionAndTakePhoto() {
         when {
-            ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED -> {
-                takeImage()
-            }
+            ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED -> takeImage()
             else -> {
                 pendingCameraAction = { takeImage() }
                 requestPermissionLauncher.launch(Manifest.permission.CAMERA)
@@ -192,9 +258,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     private fun checkCameraPermissionAndTakeVideo() {
         when {
-            ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED -> {
-                takeVideo()
-            }
+            ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED -> takeVideo()
             else -> {
                 pendingCameraAction = { takeVideo() }
                 requestPermissionLauncher.launch(Manifest.permission.CAMERA)
@@ -325,7 +389,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             SortOrder.SIZE_DESC -> compareByDescending { it.size }
             SortOrder.DATE_DESC -> compareByDescending<ArchivedFile> { File(it.filePath).lastModified() }
         }
-
         val categoryOrder = CategoryManager.getCategories(this).sorted()
         val sortedFiles = allFiles.sortedWith(
             compareBy<ArchivedFile> {
@@ -333,14 +396,12 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
                 if (index == -1) Int.MAX_VALUE else index
             }.then(secondaryComparator)
         )
-
         val query = (binding.toolbar.menu.findItem(R.id.action_search)?.actionView as? SearchView)?.query?.toString()
         val filteredFiles = if (query.isNullOrBlank()) {
             sortedFiles
         } else {
             sortedFiles.filter { it.fileName.contains(query, ignoreCase = true) }
         }
-
         val finalList = buildListWithHeaders(filteredFiles)
         withContext(Dispatchers.Main) {
             fileAdapter.submitList(finalList)
@@ -369,7 +430,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         if (files.isEmpty()) return emptyList()
         val listWithHeaders = mutableListOf<ListItem>()
         val groupedByCategory = files.groupBy { it.category }
-
         val categoryOrder = CategoryManager.getCategories(this).sorted()
         categoryOrder.forEach { categoryName ->
             groupedByCategory[categoryName]?.let { filesInCategory ->
@@ -539,18 +599,15 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
 
     private fun showCategorySelectionDialog(filesToMove: List<ArchivedFile>) {
         if (filesToMove.isEmpty()) return
-
         val currentCategories = filesToMove.map { it.category }.toSet()
         val categories = CategoryManager.getCategories(this)
             .filter { !currentCategories.contains(it) }
             .sorted()
             .toTypedArray()
-
         if (categories.isEmpty()) {
             Toast.makeText(this, "Taşınacak başka kategori bulunmuyor.", Toast.LENGTH_SHORT).show()
             return
         }
-
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.action_move_category))
             .setItems(categories) { dialog, which ->
@@ -573,7 +630,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             .show()
     }
 
-
     private suspend fun deleteFiles(files: List<ArchivedFile>) {
         var deletedCount = 0
         withContext(Dispatchers.IO) {
@@ -589,6 +645,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         val message = if (deletedCount == 1) getString(R.string.file_deleted_toast) else getString(R.string.files_deleted_toast, deletedCount)
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         updateFullList()
+        showInterstitialAd()
     }
 
     override fun onQueryTextSubmit(query: String?): Boolean = false
