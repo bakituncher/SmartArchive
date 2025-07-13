@@ -123,5 +123,22 @@
     <string name="backup_failed_title">Yedekleme Başarısız</string>
     <string name="backup_failed_message">Arşiviniz yedeklenemedi. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.</string>
     <string name="backup_failed_message_exception">Yedekleme sırasında bir hata oluştu: %s</string>
+    <string name="action_next">İleri</string>
+    <string name="action_skip">Atla</string>
+    <string name="action_finish">Bitir</string>
+    <string name="login_title">Arşivini Güvene Al</string>
+    <string name="login_description">Dosyalarınızı otomatik olarak Google Drive\'a yedeklemek ve güvende tutmak için Google hesabınızla giriş yapın.</string>
+    <string name="login_button_text">Google ile Giriş Yap</string>
+    <string name="login_skip_button_text">Daha Sonra</string>
+    <string name="backup_found_title">Yedek Bulundu</string>
+    <string name="backup_found_message">%s tarihli bir yedeğiniz bulundu. Verilerinizi şimdi geri yüklemek ister misiniz?</string>
+    <string name="action_restore_backup">Yedeği Geri Yükle</string>
+    <string name="action_start_fresh">Atla ve Temiz Başla</string>
+    <string name="no_backup_found_title">Yedek Bulunamadı</string>
+    <string name="no_backup_found_message">Gelecekte verilerinizi güvende tutmak için otomatik yedeklemeyi etkinleştirmek ister misiniz?</string>
+    <string name="action_enable_auto_backup">Otomatik Yedeklemeyi Aç</string>
+    <string name="restoring_data_title">Veriler Geri Yükleniyor</string>
+    <string name="restoring_data_message">Verileriniz geri yüklenirken lütfen bekleyin...</string>
+    <string name="checking_backup_message">Mevcut yedekler kontrol ediliyor...</string>
 
 </resources>

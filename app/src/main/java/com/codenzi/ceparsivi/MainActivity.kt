@@ -98,7 +98,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        // Bu Activity artık başlangıç ekranı olmadığı için splashScreen'i buradan yönetmeye gerek yok.
         super.onCreate(savedInstanceState)
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -126,16 +126,12 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             }
         }
 
-        checkFirstLaunch()
         setSupportActionBar(binding.toolbar)
         setupRecyclerView()
 
         binding.buttonAddFile.setOnClickListener {
             showAddOptionsDialog()
         }
-
-        // HATALI OLAN YEDEK KONTROL KODLARI BURADAN TAMAMEN KALDIRILDI.
-        // BU İŞLEM ARTIK SADECE SETTINGSACTIVITY'DE YAPILIYOR.
     }
 
     private fun showAddOptionsDialog() {
@@ -217,25 +213,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         saveActivityLauncher.launch(intent)
-    }
-
-    private fun checkFirstLaunch() {
-        val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
-        val isFirstLaunch = prefs.getBoolean("isFirstLaunch", true)
-        if (isFirstLaunch) {
-            val currentLanguage = Locale.getDefault().language
-            val imageResource = if (currentLanguage == "tr") R.drawable.learn else R.drawable.learn_en
-            binding.onboardingImageView.setImageResource(imageResource)
-            binding.onboardingOverlay.isVisible = true
-        }
-        binding.closeOnboardingButton.setOnClickListener {
-            binding.onboardingOverlay.animate()
-                .alpha(0f)
-                .withEndAction { binding.onboardingOverlay.isVisible = false }
-                .setDuration(300)
-                .start()
-            prefs.edit { putBoolean("isFirstLaunch", false) }
-        }
     }
 
     override fun onResume() {

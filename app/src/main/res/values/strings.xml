@@ -127,5 +127,22 @@
     <string name="backup_failed_title">Backup Failed</string>
     <string name="backup_failed_message">Could not back up your archive. Please check your internet connection and try again.</string>
     <string name="backup_failed_message_exception">An error occurred during backup: %s</string>
+    <string name="action_next">Next</string>
+    <string name="action_skip">Skip</string>
+    <string name="action_finish">Finish</string>
+    <string name="login_title">Secure Your Archive</string>
+    <string name="login_description">Sign in with your Google account to automatically back up your files to Google Drive and keep them safe.</string>
+    <string name="login_button_text">Sign In with Google</string>
+    <string name="login_skip_button_text">Maybe Later</string>
+    <string name="backup_found_title">Backup Found</string>
+    <string name="backup_found_message">We found a backup from %s. Do you want to restore your data now?</string>
+    <string name="action_restore_backup">Restore Backup</string>
+    <string name="action_start_fresh">Skip &amp; Start Fresh</string>
+    <string name="no_backup_found_title">No Backup Found</string>
+    <string name="no_backup_found_message">Do you want to enable automatic backup to keep your data safe in the future?</string>
+    <string name="action_enable_auto_backup">Enable Auto Backup</string>
+    <string name="restoring_data_title">Restoring Data</string>
+    <string name="restoring_data_message">Please wait while your data is being restored...</string>
+    <string name="checking_backup_message">Checking for existing backups...</string>
 
 </resources>
