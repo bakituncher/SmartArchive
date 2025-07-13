@@ -140,6 +140,5 @@
     <string name="restoring_data_title">Veriler Geri Yükleniyor</string>
     <string name="restoring_data_message">Verileriniz geri yüklenirken lütfen bekleyin...</string>
     <string name="checking_backup_message">Mevcut yedekler kontrol ediliyor...</string>
-    <string name="auto_backup_prompt_after_restore">Verileriniz geri yüklendi. Gelecekte güvende tutmak için otomatik yedeklemeyi etkinleştirmek ister misiniz?</string>
 
 </resources>
