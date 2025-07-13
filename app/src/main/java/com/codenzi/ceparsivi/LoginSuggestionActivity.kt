@@ -46,9 +46,17 @@ class LoginSuggestionActivity : AppCompatActivity() {
         binding = ActivityLoginSuggestionBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // DÜZELTME: Bu ekrana yanlışlıkla gelinirse ve kullanıcı zaten giriş yapmışsa,
+        // onu doğrudan ana ekrana göndererek döngüyü engelle.
+        if (GoogleSignIn.getLastSignedInAccount(this) != null) {
+            navigateToMain(markAsSeen = true)
+            return
+        }
+
         setupGoogleSignIn()
 
         binding.buttonSignIn.setOnClickListener {
+            setLoading(true)
             val signInIntent = googleSignInClient.signInIntent
             signInLauncher.launch(signInIntent)
         }
@@ -92,7 +100,8 @@ class LoginSuggestionActivity : AppCompatActivity() {
                 if (backupMetadata != null) {
                     showRestorePromptDialog(backupMetadata.second)
                 } else {
-                    showEnableAutoBackupDialog()
+                    // Yedek bulunamadıysa direkt otomatik yedekleme sorusunu sor.
+                    showEnableAutoBackupDialog(getString(R.string.no_backup_found_message))
                 }
             }
         }
@@ -108,17 +117,18 @@ class LoginSuggestionActivity : AppCompatActivity() {
                 performRestore()
             }
             .setNegativeButton(getString(R.string.action_start_fresh)) { _, _ ->
-                navigateToMain(markAsSeen = true)
+                // Temiz başlamayı seçerse, yine de otomatik yedeklemeyi sor.
+                showEnableAutoBackupDialog(getString(R.string.no_backup_found_message))
             }
             .setCancelable(false)
             .show()
     }
 
-    private fun showEnableAutoBackupDialog() {
+    private fun showEnableAutoBackupDialog(message: String) {
         setLoading(false)
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.no_backup_found_title))
-            .setMessage(getString(R.string.no_backup_found_message))
+            .setMessage(message) // Mesaj artık dinamik
             .setPositiveButton(getString(R.string.action_enable_auto_backup)) { _, _ ->
                 getSharedPreferences("AppPrefs", MODE_PRIVATE).edit {
                     putBoolean("auto_backup_enabled", true)
@@ -139,7 +149,7 @@ class LoginSuggestionActivity : AppCompatActivity() {
             .setTitle(getString(R.string.restoring_data_title))
             .setMessage(getString(R.string.restoring_data_message))
             .setCancelable(false)
-            .setView(R.layout.dialog_progress) // Basit bir progress bar göstermek için
+            .setView(R.layout.dialog_progress)
             .show()
 
         lifecycleScope.launch {
@@ -148,9 +158,11 @@ class LoginSuggestionActivity : AppCompatActivity() {
                 dialog.dismiss()
                 if (result == RestoreResult.SUCCESS) {
                     Toast.makeText(applicationContext, "Veriler başarıyla geri yüklendi.", Toast.LENGTH_LONG).show()
-                    navigateToMain(markAsSeen = true, shouldRestart = true)
+                    // DÜZELTME: Başarılı geri yüklemeden sonra otomatik yedeklemeyi sor.
+                    showEnableAutoBackupDialog(getString(R.string.auto_backup_prompt_after_restore))
                 } else {
                     Toast.makeText(applicationContext, "Geri yükleme başarısız oldu.", Toast.LENGTH_LONG).show()
+                    // Başarısız olsa bile kullanıcıyı ana ekrana gönder.
                     navigateToMain(markAsSeen = true)
                 }
             }
@@ -164,10 +176,7 @@ class LoginSuggestionActivity : AppCompatActivity() {
         }
 
         val intent = Intent(this, MainActivity::class.java).apply {
-            if (shouldRestart) {
-                // Uygulamayı yeniden başlatarak verilerin temiz bir şekilde yüklenmesini sağlarız.
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            }
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         startActivity(intent)
         finish()

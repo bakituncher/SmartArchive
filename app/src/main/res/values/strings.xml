@@ -144,5 +144,6 @@
     <string name="restoring_data_title">Restoring Data</string>
     <string name="restoring_data_message">Please wait while your data is being restored...</string>
     <string name="checking_backup_message">Checking for existing backups...</string>
+    <string name="auto_backup_prompt_after_restore">Your data has been restored. Would you like to enable automatic backup to keep it safe going forward?</string>
 
 </resources>
