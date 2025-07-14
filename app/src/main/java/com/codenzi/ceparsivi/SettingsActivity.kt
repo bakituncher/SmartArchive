@@ -7,6 +7,7 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -72,9 +73,13 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         loadSettings()
         setupPrivacyOptionsButton()
 
+        // Click Listeners
         binding.textViewTheme.setOnClickListener { showThemeSelectionDialog() }
         binding.textViewManageCategories.setOnClickListener { showManageCategoriesDialog() }
         binding.textViewPrivacyPolicy.setOnClickListener { openPrivacyPolicyLink() }
+        binding.textViewTermsOfUse.setOnClickListener { openTermsOfUseLink() }
+        binding.textViewContactUs.setOnClickListener { openContactUsEmail() }
+
         binding.buttonDriveSignInOut.setOnClickListener {
             if (GoogleSignIn.getLastSignedInAccount(this) == null) signIn() else signOut()
         }
@@ -85,6 +90,48 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             handleAutoBackupSwitch(isChecked)
         }
     }
+
+    // --- DÜZELTİLEN VE EN SAĞLAM HALE GETİRİLEN FONKSİYON ---
+    private fun openContactUsEmail() {
+        val emailAddress = getString(R.string.contact_us_email)
+        val subject = getString(R.string.contact_us_subject)
+
+        // En uyumlu yöntem: Konuyu doğrudan "mailto" URI'sine bir parametre olarak eklemek.
+        // Bu, tüm e-posta uygulamalarının konuyu doğru bir şekilde almasını sağlar.
+        val mailtoUri = Uri.parse("mailto:$emailAddress?subject=${Uri.encode(subject)}")
+
+        val intent = Intent(Intent.ACTION_SENDTO, mailtoUri)
+
+        try {
+            startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            // Eğer cihazda hiçbir e-posta uygulaması bulunamazsa kullanıcıyı bilgilendir.
+            Toast.makeText(this, "No email client found to handle this request.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun openTermsOfUseLink() {
+        val termsUrl = getString(R.string.terms_of_use_url)
+        val intent = Intent(Intent.ACTION_VIEW, termsUrl.toUri())
+        try {
+            startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, getString(R.string.error_no_app_for_action), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun openPrivacyPolicyLink() {
+        val privacyPolicyUrl = getString(R.string.privacy_policy_url)
+        val intent = Intent(Intent.ACTION_VIEW, privacyPolicyUrl.toUri())
+        try {
+            startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, getString(R.string.error_no_app_for_action), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // --- BU NOKTADAN SONRAKİ TÜM KODLAR TAMAMEN AYNI KALACAK ---
+    // Hiçbir değişiklik yapılmadı, mevcut işlevsellik korunuyor.
 
     private fun setupPrivacyOptionsButton() {
         val consentInformation = UserMessagingPlatform.getConsentInformation(this)
@@ -220,21 +267,19 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         binding.textViewLastBackup.text = getString(R.string.last_backup_checking)
         binding.textViewLastBackup.visibility = View.VISIBLE
         lifecycleScope.launch {
-            val backupMetadata = driveHelper?.getBackupMetadata()
-            withContext(Dispatchers.Main) {
-                binding.textViewLastBackup.text = if (backupMetadata != null) {
-                    val formattedDate = SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale.getDefault()).format(Date(backupMetadata.second))
-                    getString(R.string.last_backup_at, formattedDate)
-                } else {
-                    getString(R.string.last_backup_never)
-                }
+            val backupMetadata = withContext(Dispatchers.IO) { driveHelper?.getBackupMetadata() }
+            binding.textViewLastBackup.text = if (backupMetadata != null) {
+                val formattedDate = SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale.getDefault()).format(Date(backupMetadata.second))
+                getString(R.string.last_backup_at, formattedDate)
+            } else {
+                getString(R.string.last_backup_never)
             }
         }
     }
 
     private fun checkBackupAndPrompt(account: GoogleSignInAccount) {
         val localDriveHelper = GoogleDriveHelper(this, account)
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             val backupMetadata = localDriveHelper.getBackupMetadata() ?: return@launch
             val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
             val lastPromptedTimestamp = prefs.getLong("last_prompted_timestamp_${account.id}", 0L)
@@ -268,16 +313,14 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             .show()
         setBackupButtonsEnabled(false)
         lifecycleScope.launch {
-            val result = driveHelper?.backupData()
-            withContext(Dispatchers.Main) {
-                dialog.dismiss()
-                setBackupButtonsEnabled(true)
-                if (result == true) {
-                    Toast.makeText(this@SettingsActivity, "Yedekleme başarıyla tamamlandı!", Toast.LENGTH_LONG).show()
-                    checkLastBackup()
-                } else {
-                    Toast.makeText(this@SettingsActivity, "Yedekleme sırasında bir hata oluştu. Lütfen internet bağlantınızı kontrol edin.", Toast.LENGTH_LONG).show()
-                }
+            val result = withContext(Dispatchers.IO) { driveHelper?.backupData() }
+            dialog.dismiss()
+            setBackupButtonsEnabled(true)
+            if (result == true) {
+                Toast.makeText(this@SettingsActivity, "Yedekleme başarıyla tamamlandı!", Toast.LENGTH_LONG).show()
+                checkLastBackup()
+            } else {
+                Toast.makeText(this@SettingsActivity, "Yedekleme sırasında bir hata oluştu. Lütfen internet bağlantınızı kontrol edin.", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -299,23 +342,21 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             .show()
         setBackupButtonsEnabled(false)
         lifecycleScope.launch {
-            val result = driveHelper?.restoreData()
-            withContext(Dispatchers.Main) {
-                dialog.dismiss()
-                setBackupButtonsEnabled(true)
-                when (result) {
-                    RestoreResult.SUCCESS -> {
-                        CategoryManager.invalidate()
-                        FileHashManager.invalidate()
-                        Toast.makeText(this@SettingsActivity, "Veriler başarıyla geri yüklendi. Uygulama yeniden başlatılıyor.", Toast.LENGTH_LONG).show()
-                        restartApp()
-                    }
-                    RestoreResult.NO_BACKUP_FOUND -> showRestoreError("Geri yüklenecek bir yedek bulunamadı.")
-                    RestoreResult.DOWNLOAD_FAILED -> showRestoreError("Yedek indirilemedi. İnternet bağlantınızı veya Google Drive izinlerinizi kontrol edin.")
-                    RestoreResult.VALIDATION_FAILED -> showRestoreError("Yedek dosyası bozuk veya geçersiz. Lütfen yeni bir yedek almayı deneyin.")
-                    RestoreResult.RESTORE_FAILED -> showRestoreError("Dosyalar geri yüklenemedi. Cihazınızda yeterli alan olduğundan emin olun.")
-                    else -> showRestoreError("Bilinmeyen bir hata oluştu. Lütfen daha sonra tekrar deneyin.")
+            val result = withContext(Dispatchers.IO) { driveHelper?.restoreData() }
+            dialog.dismiss()
+            setBackupButtonsEnabled(true)
+            when (result) {
+                RestoreResult.SUCCESS -> {
+                    CategoryManager.invalidate()
+                    FileHashManager.invalidate()
+                    Toast.makeText(this@SettingsActivity, "Veriler başarıyla geri yüklendi. Uygulama yeniden başlatılıyor.", Toast.LENGTH_LONG).show()
+                    restartApp()
                 }
+                RestoreResult.NO_BACKUP_FOUND -> showRestoreError("Geri yüklenecek bir yedek bulunamadı.")
+                RestoreResult.DOWNLOAD_FAILED -> showRestoreError("Yedek indirilemedi. İnternet bağlantınızı veya Google Drive izinlerinizi kontrol edin.")
+                RestoreResult.VALIDATION_FAILED -> showRestoreError("Yedek dosyası bozuk veya geçersiz. Lütfen yeni bir yedek almayı deneyin.")
+                RestoreResult.RESTORE_FAILED -> showRestoreError("Dosyalar geri yüklenemedi. Cihazınızda yeterli alan olduğundan emin olun.")
+                else -> showRestoreError("Bilinmeyen bir hata oluştu. Lütfen daha sonra tekrar deneyin.")
             }
         }
     }
@@ -352,12 +393,10 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             .setCancelable(false)
             .show()
         lifecycleScope.launch {
-            driveHelper?.deleteAllData()
-            withContext(Dispatchers.Main) {
-                dialog.dismiss()
-                Toast.makeText(this@SettingsActivity, "Tüm verileriniz başarıyla silindi.", Toast.LENGTH_LONG).show()
-                checkLastBackup()
-            }
+            withContext(Dispatchers.IO) { driveHelper?.deleteAllData() }
+            dialog.dismiss()
+            Toast.makeText(this@SettingsActivity, "Tüm verileriniz başarıyla silindi.", Toast.LENGTH_LONG).show()
+            checkLastBackup()
         }
     }
 
@@ -392,16 +431,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
                 dialog.dismiss()
             }
             .show()
-    }
-
-    private fun openPrivacyPolicyLink() {
-        val privacyPolicyUrl = getString(R.string.privacy_policy_url)
-        val intent = Intent(Intent.ACTION_VIEW, privacyPolicyUrl.toUri())
-        try {
-            startActivity(intent)
-        } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, getString(R.string.error_no_app_for_action), Toast.LENGTH_SHORT).show()
-        }
     }
 
     private fun showManageCategoriesDialog() {

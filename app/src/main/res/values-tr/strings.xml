@@ -144,4 +144,7 @@
     <string name="privacy_options_error">Ayarlar yüklenemedi.</string>
     <string name="terms_agreement_text"><a href="https://www.codenzi.com/smart-term-of-use.html">Kullanım Koşullarını</a> okudum ve kabul ediyorum</string>
     <string name="accept_terms_to_continue">Devam etmek için lütfen Kullanım Koşullarını kabul edin.</string>
+    <string name="action_terms_of_use">Kullanım Koşulları</string>
+    <string name="action_contact_us">Bize Ulaşın</string>
+    <string name="contact_us_subject">Akıllı Arşiv Uygulaması İçin Geri Bildirim</string>
 </resources>

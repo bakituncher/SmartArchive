@@ -159,13 +159,11 @@
                         android:text="@string/settings_auto_backup_description"
                         android:textColor="?attr/colorOnSurfaceVariant"/>
 
-
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:background="?attr/colorOutlineVariant"
                         android:layout_marginHorizontal="16dp"/>
-
 
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:layout_width="match_parent"
@@ -202,7 +200,6 @@
                             app:layout_constraintTop_toBottomOf="@id/textViewDriveTitle"
                             app:layout_constraintEnd_toEndOf="parent"
                             tools:text="Giriş yapıldı: example@gmail.com" />
-
                     </androidx.constraintlayout.widget.ConstraintLayout>
 
                     <TextView
@@ -296,20 +293,68 @@
                 android:layout_marginTop="8dp"
                 app:cardCornerRadius="16dp">
 
-                <TextView
-                    android:id="@+id/textViewPrivacyPolicy"
-                    style="@style/TextAppearance.Material3.BodyLarge"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="?attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:gravity="center_vertical"
-                    android:padding="16dp"
-                    android:text="@string/action_privacy_policy"
-                    app:drawableStartCompat="@drawable/ic_info"
-                    android:drawablePadding="16dp"
-                    app:drawableTint="?attr/colorOnSurfaceVariant"/>
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/textViewPrivacyPolicy"
+                        style="@style/TextAppearance.Material3.BodyLarge"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:padding="16dp"
+                        android:text="@string/action_privacy_policy"
+                        app:drawableStartCompat="@drawable/ic_privacy_policy"
+                        android:drawablePadding="16dp"
+                        app:drawableTint="?attr/colorOnSurfaceVariant"/>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="?attr/colorOutlineVariant"
+                        android:layout_marginHorizontal="16dp"/>
+
+                    <TextView
+                        android:id="@+id/textViewTermsOfUse"
+                        style="@style/TextAppearance.Material3.BodyLarge"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:padding="16dp"
+                        android:text="@string/action_terms_of_use"
+                        app:drawableStartCompat="@drawable/ic_info"
+                        android:drawablePadding="16dp"
+                        app:drawableTint="?attr/colorOnSurfaceVariant"/>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="?attr/colorOutlineVariant"
+                        android:layout_marginHorizontal="16dp"/>
+
+                    <TextView
+                        android:id="@+id/textViewContactUs"
+                        style="@style/TextAppearance.Material3.BodyLarge"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:padding="16dp"
+                        android:text="@string/action_contact_us"
+                        app:drawableStartCompat="@drawable/ic_send_feedback"
+                        android:drawablePadding="16dp"
+                        app:drawableTint="?attr/colorOnSurfaceVariant"/>
+                </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
         </LinearLayout>

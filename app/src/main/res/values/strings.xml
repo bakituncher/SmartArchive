@@ -150,5 +150,10 @@
     <string name="privacy_options_error">Failed to load settings.</string>
     <string name="terms_agreement_text">I have read and agree to the <a href="https://www.codenzi.com/smart-term-of-use.html">Terms of Use</a></string>
     <string name="accept_terms_to_continue">Please accept the Terms of Use to continue.</string>
+    <string name="action_terms_of_use">Terms of Use</string>
+    <string name="terms_of_use_url" translatable="false">https://www.codenzi.com/smart-term-of-use.html</string>
+    <string name="action_contact_us">Contact Us</string>
+    <string name="contact_us_email" translatable="false">info@codenzi.com</string>
+    <string name="contact_us_subject">Feedback for Smart Archive App</string>
 
 </resources>
