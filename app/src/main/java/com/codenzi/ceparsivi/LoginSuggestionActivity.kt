@@ -3,6 +3,7 @@ package com.codenzi.ceparsivi
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.text.method.LinkMovementMethod
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -47,15 +48,49 @@ class LoginSuggestionActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setupGoogleSignIn()
+        setupTermsAndConditions() // YENİ: Koşullar metnini ve butonları ayarlayan fonksiyon
 
-        binding.buttonSignIn.setOnClickListener {
-            val signInIntent = googleSignInClient.signInIntent
-            signInLauncher.launch(signInIntent)
+        // Butonların tıklama olayları artık checkActionButtons fonksiyonu içinde yönetiliyor
+    }
+
+    // YENİ EKLENDİ: Koşulları ve butonları yöneten fonksiyon
+    private fun setupTermsAndConditions() {
+        // Checkbox metnindeki linki tıklanabilir yap
+        binding.termsCheckbox.movementMethod = LinkMovementMethod.getInstance()
+
+        // Başlangıçta butonları devre dışı bırak
+        updateButtonState(false)
+
+        // Checkbox durumunu dinle
+        binding.termsCheckbox.setOnCheckedChangeListener { _, isChecked ->
+            updateButtonState(isChecked)
         }
 
-        binding.textMaybeLater.setOnClickListener {
-            navigateToMain(markAsSeen = true)
+        // Butonlara tıklama olaylarını ayarla
+        binding.buttonSignIn.setOnClickListener { checkActionButtons { signIn() } }
+        binding.textMaybeLater.setOnClickListener { checkActionButtons { navigateToMain(markAsSeen = true) } }
+    }
+
+    // YENİ EKLENDİ: Butonların aktif/pasif durumunu günceller
+    private fun updateButtonState(isEnabled: Boolean) {
+        binding.buttonSignIn.isEnabled = isEnabled
+        binding.textMaybeLater.isEnabled = isEnabled
+        binding.buttonSignIn.alpha = if (isEnabled) 1.0f else 0.5f
+        binding.textMaybeLater.alpha = if (isEnabled) 1.0f else 0.5f
+    }
+
+    // YENİ EKLENDİ: Butona tıklandığında checkbox'ı kontrol eder
+    private fun checkActionButtons(action: () -> Unit) {
+        if (binding.termsCheckbox.isChecked) {
+            action()
+        } else {
+            Toast.makeText(this, getString(R.string.accept_terms_to_continue), Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun signIn() {
+        val signInIntent = googleSignInClient.signInIntent
+        signInLauncher.launch(signInIntent)
     }
 
     private fun setLoading(isLoading: Boolean) {
@@ -66,8 +101,8 @@ class LoginSuggestionActivity : AppCompatActivity() {
     private fun setupGoogleSignIn() {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
-            .requestServerAuthCode(getString(R.string.default_web_client_id))
-            .requestScopes(Scope(DriveScopes.DRIVE_FILE))
+            .requestServerAuthCode(getString(R.string.default_web_client_id)) //
+            .requestScopes(Scope(DriveScopes.DRIVE_FILE)) //
             .build()
         googleSignInClient = GoogleSignIn.getClient(this, gso)
     }
@@ -76,7 +111,7 @@ class LoginSuggestionActivity : AppCompatActivity() {
         try {
             val account = completedTask.getResult(ApiException::class.java)!!
             Toast.makeText(this, "Hoş geldin, ${account.displayName}", Toast.LENGTH_SHORT).show()
-            driveHelper = GoogleDriveHelper(this, account)
+            driveHelper = GoogleDriveHelper(this, account) //
             checkBackupAndPrompt(account)
         } catch (e: ApiException) {
             setLoading(false)
@@ -87,7 +122,7 @@ class LoginSuggestionActivity : AppCompatActivity() {
     private fun checkBackupAndPrompt(account: GoogleSignInAccount) {
         setLoading(true)
         lifecycleScope.launch {
-            val backupMetadata = driveHelper?.getBackupMetadata()
+            val backupMetadata = driveHelper?.getBackupMetadata() //
             withContext(Dispatchers.Main) {
                 if (backupMetadata != null) {
                     showRestorePromptDialog(backupMetadata.second)
@@ -102,12 +137,12 @@ class LoginSuggestionActivity : AppCompatActivity() {
         setLoading(false)
         val formattedDate = SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale.getDefault()).format(Date(backupTimestamp))
         AlertDialog.Builder(this)
-            .setTitle(getString(R.string.backup_found_title))
-            .setMessage(getString(R.string.backup_found_message, formattedDate))
-            .setPositiveButton(getString(R.string.action_restore_backup)) { _, _ ->
+            .setTitle(getString(R.string.backup_found_title)) //
+            .setMessage(getString(R.string.backup_found_message, formattedDate)) //
+            .setPositiveButton(getString(R.string.action_restore_backup)) { _, _ -> //
                 performRestore()
             }
-            .setNegativeButton(getString(R.string.action_start_fresh)) { _, _ ->
+            .setNegativeButton(getString(R.string.action_start_fresh)) { _, _ -> //
                 navigateToMain(markAsSeen = true)
             }
             .setCancelable(false)
@@ -117,17 +152,17 @@ class LoginSuggestionActivity : AppCompatActivity() {
     private fun showEnableAutoBackupDialog() {
         setLoading(false)
         AlertDialog.Builder(this)
-            .setTitle(getString(R.string.no_backup_found_title))
-            .setMessage(getString(R.string.no_backup_found_message))
-            .setPositiveButton(getString(R.string.action_enable_auto_backup)) { _, _ ->
+            .setTitle(getString(R.string.no_backup_found_title)) //
+            .setMessage(getString(R.string.no_backup_found_message)) //
+            .setPositiveButton(getString(R.string.action_enable_auto_backup)) { _, _ -> //
                 getSharedPreferences("AppPrefs", MODE_PRIVATE).edit {
                     putBoolean("auto_backup_enabled", true)
                 }
-                BackupScheduler.schedulePeriodicBackup(this)
-                Toast.makeText(this, getString(R.string.auto_backup_enabled_toast), Toast.LENGTH_SHORT).show()
+                BackupScheduler.schedulePeriodicBackup(this) //
+                Toast.makeText(this, getString(R.string.auto_backup_enabled_toast), Toast.LENGTH_SHORT).show() //
                 navigateToMain(markAsSeen = true)
             }
-            .setNegativeButton(getString(R.string.login_skip_button_text)) { _, _ ->
+            .setNegativeButton(getString(R.string.login_skip_button_text)) { _, _ -> //
                 navigateToMain(markAsSeen = true)
             }
             .setCancelable(false)
@@ -136,17 +171,17 @@ class LoginSuggestionActivity : AppCompatActivity() {
 
     private fun performRestore() {
         val dialog = AlertDialog.Builder(this)
-            .setTitle(getString(R.string.restoring_data_title))
-            .setMessage(getString(R.string.restoring_data_message))
+            .setTitle(getString(R.string.restoring_data_title)) //
+            .setMessage(getString(R.string.restoring_data_message)) //
             .setCancelable(false)
             .setView(R.layout.dialog_progress) // Basit bir progress bar göstermek için
             .show()
 
         lifecycleScope.launch {
-            val result = driveHelper?.restoreData()
+            val result = driveHelper?.restoreData() //
             withContext(Dispatchers.Main) {
                 dialog.dismiss()
-                if (result == RestoreResult.SUCCESS) {
+                if (result == RestoreResult.SUCCESS) { //
                     Toast.makeText(applicationContext, "Veriler başarıyla geri yüklendi.", Toast.LENGTH_LONG).show()
                     navigateToMain(markAsSeen = true, shouldRestart = true)
                 } else {

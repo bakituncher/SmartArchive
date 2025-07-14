@@ -142,4 +142,6 @@
     <string name="checking_backup_message">Mevcut yedekler kontrol ediliyor...</string>
     <string name="privacy_options">Gizlilik Seçenekleri</string>
     <string name="privacy_options_error">Ayarlar yüklenemedi.</string>
+    <string name="terms_agreement_text"><a href="https://www.codenzi.com/smart-term-of-use.html">Kullanım Koşullarını</a> okudum ve kabul ediyorum</string>
+    <string name="accept_terms_to_continue">Devam etmek için lütfen Kullanım Koşullarını kabul edin.</string>
 </resources>

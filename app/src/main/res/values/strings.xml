@@ -148,5 +148,7 @@
     <string name="admob_banner_ad_unit_id" translatable="false">ca-app-pub-3940256099942544/6300978111</string>
     <string name="privacy_options">Privacy Options</string>
     <string name="privacy_options_error">Failed to load settings.</string>
+    <string name="terms_agreement_text">I have read and agree to the <a href="https://www.codenzi.com/smart-term-of-use.html">Terms of Use</a></string>
+    <string name="accept_terms_to_continue">Please accept the Terms of Use to continue.</string>
 
 </resources>
