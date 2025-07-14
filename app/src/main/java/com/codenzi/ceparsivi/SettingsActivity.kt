@@ -1,3 +1,5 @@
+// Konum: app/src/main/java/com/codenzi/ceparsivi/SettingsActivity.kt
+
 package com.codenzi.ceparsivi
 
 import android.Manifest
@@ -26,6 +28,7 @@ import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.Scope
 import com.google.android.gms.tasks.Task
 import com.google.api.services.drive.DriveScopes
+import com.google.android.ump.UserMessagingPlatform
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -49,7 +52,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         }
     }
 
-    // YENİ EKLENDİ: Android 13+ için bildirim izni isteme launcheri
     private val requestNotificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
             if (!isGranted) {
@@ -67,23 +69,40 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         setupGoogleSignIn()
-        loadSettings() // Ayarları yükle
+        loadSettings()
+        setupPrivacyOptionsButton()
 
         binding.textViewTheme.setOnClickListener { showThemeSelectionDialog() }
         binding.textViewManageCategories.setOnClickListener { showManageCategoriesDialog() }
         binding.textViewPrivacyPolicy.setOnClickListener { openPrivacyPolicyLink() }
-
         binding.buttonDriveSignInOut.setOnClickListener {
             if (GoogleSignIn.getLastSignedInAccount(this) == null) signIn() else signOut()
         }
-
         binding.buttonBackup.setOnClickListener { backupData() }
         binding.buttonRestore.setOnClickListener { restoreData() }
         binding.buttonDeleteBackup.setOnClickListener { showDeleteConfirmationDialog() }
-
-        // YENİ EKLENDİ: Otomatik yedekleme switch'inin dinleyicisi
         binding.switchAutoBackup.setOnCheckedChangeListener { _, isChecked ->
             handleAutoBackupSwitch(isChecked)
+        }
+    }
+
+    private fun setupPrivacyOptionsButton() {
+        val consentInformation = UserMessagingPlatform.getConsentInformation(this)
+
+        if (consentInformation.privacyOptionsRequirementStatus == com.google.android.ump.ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED) {
+            binding.textViewPrivacySettings.visibility = View.VISIBLE
+            binding.dividerPrivacySettings.visibility = View.VISIBLE
+            binding.textViewPrivacySettings.setOnClickListener {
+                UserMessagingPlatform.showPrivacyOptionsForm(this) { formError ->
+                    if (formError != null) {
+                        Log.w("SettingsActivity", "Gizlilik seçenekleri formu hatası: ${formError.message}")
+                        Toast.makeText(this, getString(R.string.privacy_options_error), Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        } else {
+            binding.textViewPrivacySettings.visibility = View.GONE
+            binding.dividerPrivacySettings.visibility = View.GONE
         }
     }
 
@@ -92,13 +111,11 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         updateUI(GoogleSignIn.getLastSignedInAccount(this))
     }
 
-    // YENİ EKLENDİ: Ayarları SharedPreferences'dan yükler
     private fun loadSettings() {
         val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
         binding.switchAutoBackup.isChecked = prefs.getBoolean("auto_backup_enabled", false)
     }
 
-    // YENİ EKLENDİ: Otomatik yedekleme anahtarının durumunu yönetir
     private fun handleAutoBackupSwitch(isEnabled: Boolean) {
         if (isEnabled) {
             val account = GoogleSignIn.getLastSignedInAccount(this)
@@ -114,22 +131,16 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             BackupScheduler.cancelPeriodicBackup(this)
             Toast.makeText(this, getString(R.string.auto_backup_disabled_toast), Toast.LENGTH_SHORT).show()
         }
-
-        // Seçimi kaydet
         getSharedPreferences("AppPrefs", MODE_PRIVATE).edit {
             putBoolean("auto_backup_enabled", isEnabled)
         }
     }
 
-    // YENİ EKLENDİ: Bildirim iznini kontrol eder ve gerekirse ister
     private fun checkAndRequestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             when {
-                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED -> {
-                    // İzin zaten var
-                }
+                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED -> {}
                 shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
-                    // Kullanıcı izni reddetti, bir açıklama göster
                     AlertDialog.Builder(this)
                         .setTitle(getString(R.string.notification_permission_title))
                         .setMessage(getString(R.string.notification_permission_rationale))
@@ -140,13 +151,11 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
                         .show()
                 }
                 else -> {
-                    // Doğrudan izin iste
                     requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
             }
         }
     }
-
 
     private fun setupGoogleSignIn() {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -165,7 +174,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         googleSignInClient.signOut().addOnCompleteListener(this) {
             updateUI(null)
             Toast.makeText(this, "Oturum kapatıldı.", Toast.LENGTH_SHORT).show()
-            // Oturum kapatılınca otomatik yedeklemeyi de devre dışı bırak
             if (binding.switchAutoBackup.isChecked) {
                 binding.switchAutoBackup.isChecked = false
             }
@@ -189,7 +197,7 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             binding.textViewDriveStatus.text = getString(R.string.status_signed_in_as, account.email)
             binding.buttonDriveSignInOut.text = getString(R.string.action_sign_out)
             setBackupButtonsEnabled(true)
-            binding.switchAutoBackup.isEnabled = true // YENİ EKLENDİ
+            binding.switchAutoBackup.isEnabled = true
             driveHelper = GoogleDriveHelper(this, account)
             checkLastBackup()
         } else {
@@ -197,7 +205,7 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             binding.textViewLastBackup.visibility = View.GONE
             binding.buttonDriveSignInOut.text = getString(R.string.action_sign_in)
             setBackupButtonsEnabled(false)
-            binding.switchAutoBackup.isEnabled = false // YENİ EKLENDİ
+            binding.switchAutoBackup.isEnabled = false
             driveHelper = null
         }
     }
@@ -230,7 +238,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             val backupMetadata = localDriveHelper.getBackupMetadata() ?: return@launch
             val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
             val lastPromptedTimestamp = prefs.getLong("last_prompted_timestamp_${account.id}", 0L)
-
             if (backupMetadata.second > lastPromptedTimestamp) {
                 withContext(Dispatchers.Main) {
                     showRestorePromptDialog(backupMetadata.second, account.id!!)
@@ -260,7 +267,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             .setCancelable(false)
             .show()
         setBackupButtonsEnabled(false)
-
         lifecycleScope.launch {
             val result = driveHelper?.backupData()
             withContext(Dispatchers.Main) {
@@ -292,13 +298,11 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             .setCancelable(false)
             .show()
         setBackupButtonsEnabled(false)
-
         lifecycleScope.launch {
             val result = driveHelper?.restoreData()
             withContext(Dispatchers.Main) {
                 dialog.dismiss()
                 setBackupButtonsEnabled(true)
-
                 when (result) {
                     RestoreResult.SUCCESS -> {
                         CategoryManager.invalidate()
@@ -347,7 +351,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             .setMessage("Tüm verileriniz siliniyor...")
             .setCancelable(false)
             .show()
-
         lifecycleScope.launch {
             driveHelper?.deleteAllData()
             withContext(Dispatchers.Main) {
@@ -357,8 +360,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             }
         }
     }
-
-    // ----- KATEGORİ YÖNETİMİ FONKSİYONLARI -----
 
     override fun onCategorySaved(newName: String, oldName: String?) {
         if (oldName == null) {
@@ -380,7 +381,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         val themeModes = arrayOf(ThemeManager.ThemeMode.LIGHT, ThemeManager.ThemeMode.DARK, ThemeManager.ThemeMode.SYSTEM)
         val currentThemeValue = ThemeManager.getTheme(this)
         val checkedItem = themeModes.indexOfFirst { it.value == currentThemeValue }.coerceAtLeast(0)
-
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.app_theme))
             .setSingleChoiceItems(themes, checkedItem) { dialog, which ->
@@ -423,7 +423,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         if (!CategoryManager.getDefaultCategories(this).contains(categoryName)) {
             actions.add(getString(R.string.action_delete))
         }
-
         AlertDialog.Builder(this)
             .setTitle(categoryName)
             .setItems(actions.toTypedArray()) { _, which ->
@@ -451,7 +450,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
                 .show()
             return
         }
-
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.delete_category_confirmation_title, categoryName))
             .setMessage(getString(R.string.delete_category_confirmation_message))

@@ -146,5 +146,7 @@
     <string name="checking_backup_message">Checking for existing backups...</string>
     <string name="admob_interstitial_ad_unit_id" translatable="false">ca-app-pub-3940256099942544/1033173712</string>
     <string name="admob_banner_ad_unit_id" translatable="false">ca-app-pub-3940256099942544/6300978111</string>
+    <string name="privacy_options">Privacy Options</string>
+    <string name="privacy_options_error">Failed to load settings.</string>
 
 </resources>

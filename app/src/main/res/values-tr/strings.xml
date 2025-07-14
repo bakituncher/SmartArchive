@@ -140,5 +140,6 @@
     <string name="restoring_data_title">Veriler Geri Yükleniyor</string>
     <string name="restoring_data_message">Verileriniz geri yüklenirken lütfen bekleyin...</string>
     <string name="checking_backup_message">Mevcut yedekler kontrol ediliyor...</string>
-
+    <string name="privacy_options">Gizlilik Seçenekleri</string>
+    <string name="privacy_options_error">Ayarlar yüklenemedi.</string>
 </resources>
