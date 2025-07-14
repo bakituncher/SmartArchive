@@ -6,6 +6,8 @@ plugins {
     id("com.google.gms.google-services")
     id("kotlin-parcelize")
     id("kotlin-kapt")
+    // Firebase Crashlytics eklentisi
+    id("com.google.firebase.crashlytics")
 }
 
 android {
@@ -60,7 +62,7 @@ android {
 }
 
 dependencies {
-    // Mevcut Proje Kütüphaneleri
+    // Temel Proje Kütüphaneleri
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
@@ -82,11 +84,16 @@ dependencies {
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
-    // YENİ EKLENDİ: Google Mobile Ads (AdMob)
+    // Google Mobile Ads (AdMob)
     implementation("com.google.android.gms:play-services-ads:23.1.0")
     implementation("com.google.android.ump:user-messaging-platform:2.2.0")
-    implementation("com.google.android.gms:play-services-ads:23.1.0")
 
+    // Firebase (BOM ile uyumlu sürümler otomatik yönetilir)
+    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
+    implementation("com.google.firebase:firebase-analytics-ktx")
+    implementation("com.google.firebase:firebase-crashlytics-ktx")
+
+    // Test Kütüphaneleri
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")

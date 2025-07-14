@@ -30,6 +30,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.codenzi.ceparsivi.databinding.ActivityMainBinding
+import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
@@ -60,8 +61,9 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     private var latestTmpUri: Uri? = null
     private var pendingCameraAction: (() -> Unit)? = null
 
+    // Değişiklik: InterstitialAd değişkeni ve TAG
     private var mInterstitialAd: InterstitialAd? = null
-    private val tag = "MainActivity"
+    private val TAG = "MainActivity_AdMob" // Logları daha kolay takip etmek için
 
     private enum class SortOrder {
         DATE_DESC, NAME_ASC, NAME_DESC, SIZE_ASC, SIZE_DESC
@@ -95,10 +97,14 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         }
     }
 
+    // Değişiklik: saveActivityLauncher içinde reklam gösterme mantığı eklendi
     private val saveActivityLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_CANCELED || result.resultCode == Activity.RESULT_OK) {
-            processNextUriInQueue()
+        if (result.resultCode == Activity.RESULT_OK) {
+            // Dosya başarıyla kaydedildi, reklam göster
+            showInterstitialAd()
         }
+        // Bir sonraki dosyayı işleme al (çoklu dosya paylaşımları için)
+        processNextUriInQueue()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -113,8 +119,9 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Reklamları Yükle
         loadBanner()
-        loadInterstitialAd()
+        loadInterstitialAd() // İlk geçiş reklamını yükle
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -165,7 +172,8 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         adView?.destroy()
     }
 
-    // --- REKLAM FONKSİYONLARI (TÜM ANDROID SÜRÜMLERİ İÇİN DÜZELTİLDİ) ---
+    // --- YENİLENMİŞ REKLAM FONKSİYONLARI ---
+
     private fun loadBanner() {
         adView = AdView(this)
         binding.adViewContainer.addView(adView)
@@ -189,45 +197,81 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         adView?.loadAd(adRequest)
     }
 
+    // Değişiklik: Geçiş reklamı yükleme fonksiyonu
     private fun loadInterstitialAd() {
         val adRequest = AdRequest.Builder().build()
-        val adUnitId = getString(R.string.admob_interstitial_ad_unit_id)
+        val adUnitId = getString(R.string.admob_interstitial_ad_unit_id) // Test ID'si kullandığınızdan emin olun
         InterstitialAd.load(this, adUnitId, adRequest, object : InterstitialAdLoadCallback() {
             override fun onAdFailedToLoad(adError: LoadAdError) {
-                Log.d(tag, adError.toString())
+                Log.e(TAG, "InterstitialAd failed to load: ${adError.message}")
                 mInterstitialAd = null
             }
 
             override fun onAdLoaded(interstitialAd: InterstitialAd) {
-                Log.d(tag, "Ad was loaded.")
+                Log.d(TAG, "InterstitialAd was loaded.")
                 mInterstitialAd = interstitialAd
             }
         })
     }
 
+    // Değişiklik: Geçiş reklamı gösterme fonksiyonu ve callback'ler
     private fun showInterstitialAd() {
         if (mInterstitialAd != null) {
-            mInterstitialAd?.show(this)
-            mInterstitialAd?.fullScreenContentCallback = object: FullScreenContentCallback() {
+            mInterstitialAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
                 override fun onAdDismissedFullScreenContent() {
-                    Log.d(tag, "Ad was dismissed.")
+                    // Reklam kapatıldığında bir sonrakini yükle
+                    Log.d(TAG, "Ad was dismissed.")
                     loadInterstitialAd()
                 }
-                override fun onAdFailedToShowFullScreenContent(adError: com.google.android.gms.ads.AdError) {
-                    Log.d(tag, "Ad failed to show.")
+
+                override fun onAdFailedToShowFullScreenContent(adError: AdError) {
+                    // Reklam gösterilemezse bir sonrakini yükle
+                    Log.e(TAG, "Ad failed to show: ${adError.message}")
+                    loadInterstitialAd()
                 }
+
                 override fun onAdShowedFullScreenContent() {
-                    Log.d(tag, "Ad showed fullscreen content.")
+                    // Reklam gösterildi, artık bu reklam nesnesi geçersiz.
+                    Log.d(TAG, "Ad showed fullscreen content.")
                     mInterstitialAd = null
                 }
             }
+            mInterstitialAd?.show(this)
         } else {
-            Log.d(tag, "The interstitial ad wasn't ready yet.")
+            Log.d(TAG, "The interstitial ad wasn't ready yet.")
+            // Reklam hazır değilse, bir sonrakini yüklemeyi dene.
+            // Bu, ilk yükleme başarısız olduysa veya reklam arasında uzun süre geçtiyse faydalıdır.
             loadInterstitialAd()
         }
     }
 
-    // --- DİĞER FONKSİYONLAR (DEĞİŞİKLİK YOK) ---
+
+    // --- DİĞER FONKSİYONLAR (DEĞİŞİKLİK GEREKTİRMEYEN) ---
+    private suspend fun deleteFiles(files: List<ArchivedFile>) {
+        var deletedCount = 0
+        withContext(Dispatchers.IO) {
+            files.forEach {
+                CategoryManager.removeCategoryForFile(applicationContext, it.filePath)
+                FileHashManager.removeHashForFile(applicationContext, it.fileName)
+                val fileToDelete = File(it.filePath)
+                if (fileToDelete.exists() && fileToDelete.delete()) {
+                    deletedCount++
+                }
+            }
+        }
+        val message = if (deletedCount == 1) getString(R.string.file_deleted_toast) else getString(R.string.files_deleted_toast, deletedCount)
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        updateFullList()
+
+        // Değişiklik: Dosya silindikten sonra reklam göster
+        if (deletedCount > 0) {
+            showInterstitialAd()
+        }
+    }
+
+    // Diğer tüm fonksiyonlarınız (showAddOptionsDialog, takeImage, openFile vb.) aynı kalabilir.
+    // ... (MainActivity.kt dosyanızın geri kalanını buraya ekleyebilirsiniz)
+    // --- Fonksiyonların geri kalanı ---
     private fun showAddOptionsDialog() {
         val options = arrayOf(
             getString(R.string.option_take_photo),
@@ -372,7 +416,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.sort_dialog_title))
             .setSingleChoiceItems(sortOptions, currentSelection) { dialog, which ->
-                currentSortOrder = SortOrder.entries[which]
+                currentSortOrder = SortOrder.values()[which]
                 lifecycleScope.launch { updateFullList() }
                 dialog.dismiss()
             }
@@ -628,24 +672,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             }
             .setNegativeButton(getString(R.string.cancel), null)
             .show()
-    }
-
-    private suspend fun deleteFiles(files: List<ArchivedFile>) {
-        var deletedCount = 0
-        withContext(Dispatchers.IO) {
-            files.forEach {
-                CategoryManager.removeCategoryForFile(applicationContext, it.filePath)
-                FileHashManager.removeHashForFile(applicationContext, it.fileName)
-                val fileToDelete = File(it.filePath)
-                if (fileToDelete.exists() && fileToDelete.delete()) {
-                    deletedCount++
-                }
-            }
-        }
-        val message = if (deletedCount == 1) getString(R.string.file_deleted_toast) else getString(R.string.files_deleted_toast, deletedCount)
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-        updateFullList()
-        showInterstitialAd()
     }
 
     override fun onQueryTextSubmit(query: String?): Boolean = false
