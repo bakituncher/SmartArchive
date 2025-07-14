@@ -1,3 +1,5 @@
+// Konum: app/src/main/java/com/codenzi/ceparsivi/MainActivity.kt
+
 package com.codenzi.ceparsivi
 
 import android.Manifest
@@ -61,9 +63,8 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     private var latestTmpUri: Uri? = null
     private var pendingCameraAction: (() -> Unit)? = null
 
-    // Değişiklik: InterstitialAd değişkeni ve TAG
     private var mInterstitialAd: InterstitialAd? = null
-    private val TAG = "MainActivity_AdMob" // Logları daha kolay takip etmek için
+    private val TAG = "MainActivity_AdMob"
 
     private enum class SortOrder {
         DATE_DESC, NAME_ASC, NAME_DESC, SIZE_ASC, SIZE_DESC
@@ -73,7 +74,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         if (isGranted) {
             pendingCameraAction?.invoke()
         } else {
-            Toast.makeText(this, "Kamera izni olmadan bu özellik kullanılamaz.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.camera_permission_needed), Toast.LENGTH_LONG).show()
         }
         pendingCameraAction = null
     }
@@ -97,13 +98,10 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         }
     }
 
-    // Değişiklik: saveActivityLauncher içinde reklam gösterme mantığı eklendi
     private val saveActivityLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            // Dosya başarıyla kaydedildi, reklam göster
             showInterstitialAd()
         }
-        // Bir sonraki dosyayı işleme al (çoklu dosya paylaşımları için)
         processNextUriInQueue()
     }
 
@@ -119,9 +117,8 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Reklamları Yükle
         loadBanner()
-        loadInterstitialAd() // İlk geçiş reklamını yükle
+        loadInterstitialAd()
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -172,8 +169,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         adView?.destroy()
     }
 
-    // --- YENİLENMİŞ REKLAM FONKSİYONLARI ---
-
     private fun loadBanner() {
         adView = AdView(this)
         binding.adViewContainer.addView(adView)
@@ -197,10 +192,9 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         adView?.loadAd(adRequest)
     }
 
-    // Değişiklik: Geçiş reklamı yükleme fonksiyonu
     private fun loadInterstitialAd() {
         val adRequest = AdRequest.Builder().build()
-        val adUnitId = getString(R.string.admob_interstitial_ad_unit_id) // Test ID'si kullandığınızdan emin olun
+        val adUnitId = getString(R.string.admob_interstitial_ad_unit_id)
         InterstitialAd.load(this, adUnitId, adRequest, object : InterstitialAdLoadCallback() {
             override fun onAdFailedToLoad(adError: LoadAdError) {
                 Log.e(TAG, "InterstitialAd failed to load: ${adError.message}")
@@ -214,24 +208,20 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         })
     }
 
-    // Değişiklik: Geçiş reklamı gösterme fonksiyonu ve callback'ler
     private fun showInterstitialAd() {
         if (mInterstitialAd != null) {
             mInterstitialAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
                 override fun onAdDismissedFullScreenContent() {
-                    // Reklam kapatıldığında bir sonrakini yükle
                     Log.d(TAG, "Ad was dismissed.")
                     loadInterstitialAd()
                 }
 
                 override fun onAdFailedToShowFullScreenContent(adError: AdError) {
-                    // Reklam gösterilemezse bir sonrakini yükle
                     Log.e(TAG, "Ad failed to show: ${adError.message}")
                     loadInterstitialAd()
                 }
 
                 override fun onAdShowedFullScreenContent() {
-                    // Reklam gösterildi, artık bu reklam nesnesi geçersiz.
                     Log.d(TAG, "Ad showed fullscreen content.")
                     mInterstitialAd = null
                 }
@@ -239,14 +229,10 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             mInterstitialAd?.show(this)
         } else {
             Log.d(TAG, "The interstitial ad wasn't ready yet.")
-            // Reklam hazır değilse, bir sonrakini yüklemeyi dene.
-            // Bu, ilk yükleme başarısız olduysa veya reklam arasında uzun süre geçtiyse faydalıdır.
             loadInterstitialAd()
         }
     }
 
-
-    // --- DİĞER FONKSİYONLAR (DEĞİŞİKLİK GEREKTİRMEYEN) ---
     private suspend fun deleteFiles(files: List<ArchivedFile>) {
         var deletedCount = 0
         withContext(Dispatchers.IO) {
@@ -263,15 +249,11 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         updateFullList()
 
-        // Değişiklik: Dosya silindikten sonra reklam göster
         if (deletedCount > 0) {
             showInterstitialAd()
         }
     }
 
-    // Diğer tüm fonksiyonlarınız (showAddOptionsDialog, takeImage, openFile vb.) aynı kalabilir.
-    // ... (MainActivity.kt dosyanızın geri kalanını buraya ekleyebilirsiniz)
-    // --- Fonksiyonların geri kalanı ---
     private fun showAddOptionsDialog() {
         val options = arrayOf(
             getString(R.string.option_take_photo),
@@ -649,7 +631,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             .sorted()
             .toTypedArray()
         if (categories.isEmpty()) {
-            Toast.makeText(this, "Taşınacak başka kategori bulunmuyor.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_other_category_to_move), Toast.LENGTH_SHORT).show()
             return
         }
         AlertDialog.Builder(this)
@@ -660,11 +642,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
                     filesToMove.forEach { file ->
                         CategoryManager.setCategoryForFile(applicationContext, file.filePath, newCategory)
                     }
-                    val message = if (filesToMove.size == 1) {
-                        getString(R.string.file_moved_to_category, newCategory)
-                    } else {
-                        "${filesToMove.size} dosya '$newCategory' kategorisine taşındı."
-                    }
+                    val message = resources.getQuantityString(R.plurals.files_moved_to_category, filesToMove.size, filesToMove.size, newCategory)
                     Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show()
                     updateFullList()
                 }

@@ -8,4 +8,8 @@
         <item quantity="one">Delete %d File</item>
         <item quantity="other">Delete %d Files</item>
     </plurals>
+    <plurals name="files_moved_to_category">
+        <item quantity="one">1 file moved to \'%s\' category.</item>
+        <item quantity="other">%d files moved to \'%s\' category.</item>
+    </plurals>
 </resources>

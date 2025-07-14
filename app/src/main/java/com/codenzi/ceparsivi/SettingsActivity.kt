@@ -48,7 +48,7 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
             handleSignInResult(task)
         } else {
-            Toast.makeText(this, "Google ile giriş başarısız oldu.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.sign_in_failed), Toast.LENGTH_SHORT).show()
             setBackupButtonsEnabled(false)
         }
     }
@@ -91,22 +91,17 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         }
     }
 
-    // --- DÜZELTİLEN VE EN SAĞLAM HALE GETİRİLEN FONKSİYON ---
     private fun openContactUsEmail() {
         val emailAddress = getString(R.string.contact_us_email)
         val subject = getString(R.string.contact_us_subject)
 
-        // En uyumlu yöntem: Konuyu doğrudan "mailto" URI'sine bir parametre olarak eklemek.
-        // Bu, tüm e-posta uygulamalarının konuyu doğru bir şekilde almasını sağlar.
         val mailtoUri = Uri.parse("mailto:$emailAddress?subject=${Uri.encode(subject)}")
-
         val intent = Intent(Intent.ACTION_SENDTO, mailtoUri)
 
         try {
             startActivity(intent)
         } catch (e: ActivityNotFoundException) {
-            // Eğer cihazda hiçbir e-posta uygulaması bulunamazsa kullanıcıyı bilgilendir.
-            Toast.makeText(this, "No email client found to handle this request.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_email_client), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -129,9 +124,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             Toast.makeText(this, getString(R.string.error_no_app_for_action), Toast.LENGTH_SHORT).show()
         }
     }
-
-    // --- BU NOKTADAN SONRAKİ TÜM KODLAR TAMAMEN AYNI KALACAK ---
-    // Hiçbir değişiklik yapılmadı, mevcut işlevsellik korunuyor.
 
     private fun setupPrivacyOptionsButton() {
         val consentInformation = UserMessagingPlatform.getConsentInformation(this)
@@ -220,7 +212,7 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
     private fun signOut() {
         googleSignInClient.signOut().addOnCompleteListener(this) {
             updateUI(null)
-            Toast.makeText(this, "Oturum kapatıldı.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.sign_out_success), Toast.LENGTH_SHORT).show()
             if (binding.switchAutoBackup.isChecked) {
                 binding.switchAutoBackup.isChecked = false
             }
@@ -230,7 +222,7 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
     private fun handleSignInResult(completedTask: Task<GoogleSignInAccount>) {
         try {
             val account = completedTask.getResult(ApiException::class.java)!!
-            Toast.makeText(this, "Hoşgeldin, ${account.displayName}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.welcome_message, account.displayName), Toast.LENGTH_SHORT).show()
             updateUI(account)
             checkBackupAndPrompt(account)
         } catch (e: ApiException) {
@@ -294,10 +286,10 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
     private fun showRestorePromptDialog(backupTimestamp: Long, accountId: String) {
         val formattedDate = SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale.getDefault()).format(Date(backupTimestamp))
         AlertDialog.Builder(this)
-            .setTitle("Yedek Bulundu")
-            .setMessage("$formattedDate tarihli bir yedeğiniz bulundu. Verilerinizi şimdi geri yüklemek ister misiniz?")
-            .setPositiveButton("Evet, Geri Yükle") { _, _ -> performRestore() }
-            .setNegativeButton("Hayır, Teşekkürler", null)
+            .setTitle(getString(R.string.backup_found_title))
+            .setMessage(getString(R.string.backup_found_message, formattedDate))
+            .setPositiveButton(getString(R.string.action_restore_backup)) { _, _ -> performRestore() }
+            .setNegativeButton(getString(R.string.cancel), null)
             .setOnDismissListener {
                 val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
                 prefs.edit { putLong("last_prompted_timestamp_${accountId}", backupTimestamp) }
@@ -307,8 +299,8 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
 
     private fun backupData() {
         val dialog = AlertDialog.Builder(this)
-            .setTitle("Yedekleme Başlatılıyor")
-            .setMessage("Verileriniz Google Drive'a yedekleniyor. Lütfen bekleyin...")
+            .setTitle(getString(R.string.backup_starting_title))
+            .setMessage(getString(R.string.backup_starting_message))
             .setCancelable(false)
             .show()
         setBackupButtonsEnabled(false)
@@ -317,27 +309,27 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             dialog.dismiss()
             setBackupButtonsEnabled(true)
             if (result == true) {
-                Toast.makeText(this@SettingsActivity, "Yedekleme başarıyla tamamlandı!", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@SettingsActivity, getString(R.string.backup_success), Toast.LENGTH_LONG).show()
                 checkLastBackup()
             } else {
-                Toast.makeText(this@SettingsActivity, "Yedekleme sırasında bir hata oluştu. Lütfen internet bağlantınızı kontrol edin.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@SettingsActivity, getString(R.string.backup_error), Toast.LENGTH_LONG).show()
             }
         }
     }
 
     private fun restoreData() {
         AlertDialog.Builder(this)
-            .setTitle("Verileri Geri Yükle")
-            .setMessage("Mevcut tüm verileriniz silinecek ve son yedeklemedeki verilerle değiştirilecektir. Bu işlem geri alınamaz. Onaylıyor musunuz?")
-            .setPositiveButton("Evet, Geri Yükle") { _, _ -> performRestore() }
-            .setNegativeButton("İptal", null)
+            .setTitle(getString(R.string.restore_data_title))
+            .setMessage(getString(R.string.restore_data_message))
+            .setPositiveButton(getString(R.string.restore_data_confirm)) { _, _ -> performRestore() }
+            .setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
 
     private fun performRestore() {
         val dialog = AlertDialog.Builder(this)
-            .setTitle("Geri Yükleniyor")
-            .setMessage("Yedekleriniz indiriliyor, lütfen bekleyin...")
+            .setTitle(getString(R.string.restoring_dialog_title))
+            .setMessage(getString(R.string.restoring_dialog_message))
             .setCancelable(false)
             .show()
         setBackupButtonsEnabled(false)
@@ -349,23 +341,23 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
                 RestoreResult.SUCCESS -> {
                     CategoryManager.invalidate()
                     FileHashManager.invalidate()
-                    Toast.makeText(this@SettingsActivity, "Veriler başarıyla geri yüklendi. Uygulama yeniden başlatılıyor.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@SettingsActivity, getString(R.string.restore_success_restarting), Toast.LENGTH_LONG).show()
                     restartApp()
                 }
-                RestoreResult.NO_BACKUP_FOUND -> showRestoreError("Geri yüklenecek bir yedek bulunamadı.")
-                RestoreResult.DOWNLOAD_FAILED -> showRestoreError("Yedek indirilemedi. İnternet bağlantınızı veya Google Drive izinlerinizi kontrol edin.")
-                RestoreResult.VALIDATION_FAILED -> showRestoreError("Yedek dosyası bozuk veya geçersiz. Lütfen yeni bir yedek almayı deneyin.")
-                RestoreResult.RESTORE_FAILED -> showRestoreError("Dosyalar geri yüklenemedi. Cihazınızda yeterli alan olduğundan emin olun.")
-                else -> showRestoreError("Bilinmeyen bir hata oluştu. Lütfen daha sonra tekrar deneyin.")
+                RestoreResult.NO_BACKUP_FOUND -> showRestoreError(getString(R.string.restore_error_no_backup))
+                RestoreResult.DOWNLOAD_FAILED -> showRestoreError(getString(R.string.restore_error_download))
+                RestoreResult.VALIDATION_FAILED -> showRestoreError(getString(R.string.restore_error_validation))
+                RestoreResult.RESTORE_FAILED -> showRestoreError(getString(R.string.restore_error_generic))
+                else -> showRestoreError(getString(R.string.restore_error_unknown))
             }
         }
     }
 
     private fun showRestoreError(message: String) {
         AlertDialog.Builder(this)
-            .setTitle("Geri Yükleme Başarısız")
+            .setTitle(getString(R.string.restore_failed_title))
             .setMessage(message)
-            .setPositiveButton("Tamam", null)
+            .setPositiveButton(getString(R.string.ok), null)
             .show()
     }
 
@@ -379,23 +371,23 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
 
     private fun showDeleteConfirmationDialog() {
         AlertDialog.Builder(this)
-            .setTitle("Tüm Verileri Sil")
-            .setMessage("Bu işlem, hem bu cihazdaki tüm arşivlenmiş dosyalarınızı hem de Google Drive'daki yedeğinizi kalıcı olarak silecektir. Bu işlem geri alınamaz. Emin misiniz?")
-            .setPositiveButton("Evet, Hepsini Sil") { _, _ -> deleteAllData() }
-            .setNegativeButton("İptal", null)
+            .setTitle(getString(R.string.delete_all_data_title))
+            .setMessage(getString(R.string.delete_all_data_message))
+            .setPositiveButton(getString(R.string.delete_all_data_confirm)) { _, _ -> deleteAllData() }
+            .setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
 
     private fun deleteAllData() {
         val dialog = AlertDialog.Builder(this)
-            .setTitle("Veriler Siliniyor")
-            .setMessage("Tüm verileriniz siliniyor...")
+            .setTitle(getString(R.string.deleting_data_title))
+            .setMessage(getString(R.string.deleting_data_message))
             .setCancelable(false)
             .show()
         lifecycleScope.launch {
             withContext(Dispatchers.IO) { driveHelper?.deleteAllData() }
             dialog.dismiss()
-            Toast.makeText(this@SettingsActivity, "Tüm verileriniz başarıyla silindi.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this@SettingsActivity, getString(R.string.delete_data_success), Toast.LENGTH_LONG).show()
             checkLastBackup()
         }
     }
@@ -475,7 +467,7 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             AlertDialog.Builder(this)
                 .setTitle(getString(R.string.cannot_delete_category_title))
                 .setMessage(getString(R.string.cannot_delete_category_message, filesInCategory.size, categoryName))
-                .setPositiveButton("OK", null)
+                .setPositiveButton(getString(R.string.ok), null)
                 .show()
             return
         }

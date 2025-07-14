@@ -8,4 +8,10 @@
         <item quantity="one">1 Dosyayı Sil</item>
         <item quantity="other">%d Dosyayı Sil</item>
     </plurals>
+    <plurals name="files_moved_to_category">
+        <item quantity="one">1 dosya \'%s\' kategorisine taşındı.</item>
+        <item quantity="other">%d dosya \'%s\' kategorisine taşındı.</item>
+    </plurals>
+
+
 </resources>

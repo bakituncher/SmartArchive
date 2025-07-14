@@ -1,3 +1,5 @@
+// Konum: app/src/main/java/com/codenzi/ceparsivi/SaveFileActivity.kt
+
 package com.codenzi.ceparsivi
 
 import android.app.Activity
@@ -142,20 +144,19 @@ class SaveFileActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
 
     private fun processSaveRequest(uri: Uri, newName: String, category: String) {
         lifecycleScope.launch {
-            // Butonları devre dışı bırak ve bir yükleme göstergesi göster
             setButtonsEnabled(false)
 
             val hash = FileHashManager.calculateMD5(this@SaveFileActivity, uri)
             if (hash != null && FileHashManager.hashExists(this@SaveFileActivity, hash)) {
                 val existingFileName = FileHashManager.getFileNameForHash(this@SaveFileActivity, hash) ?: newName
-                Toast.makeText(this@SaveFileActivity, "Bu dosya zaten '$existingFileName' adıyla mevcut.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@SaveFileActivity, getString(R.string.this_file_already_exists, existingFileName), Toast.LENGTH_LONG).show()
                 finishWithResult(Activity.RESULT_CANCELED)
                 return@launch
             }
 
             val outputFile = File(filesDir, "arsiv/$newName")
             if (outputFile.exists()) {
-                Toast.makeText(this@SaveFileActivity, "'$newName' adında bir dosya zaten var.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@SaveFileActivity, getString(R.string.file_already_exists_with_name, newName), Toast.LENGTH_LONG).show()
                 setButtonsEnabled(true)
                 return@launch
             }
@@ -192,7 +193,7 @@ class SaveFileActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         val previewCard = binding.previewCard
         val imageViewPreview = binding.imageViewPreview
 
-        previewCard.isVisible = true // Kartı her zaman görünür yapalım
+        previewCard.isVisible = true
 
         when {
             mimeType.startsWith("image/") -> {

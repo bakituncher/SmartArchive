@@ -147,4 +147,41 @@
     <string name="action_terms_of_use">Kullanım Koşulları</string>
     <string name="action_contact_us">Bize Ulaşın</string>
     <string name="contact_us_subject">Akıllı Arşiv Uygulaması İçin Geri Bildirim</string>
+    <string name="backup_starting_title">Yedekleme Başlatılıyor</string>
+    <string name="backup_starting_message">Verileriniz Google Drive\'a yedekleniyor. Lütfen bekleyin...</string>
+    <string name="backup_success">Yedekleme başarıyla tamamlandı!</string>
+    <string name="backup_error">Yedekleme sırasında bir hata oluştu. Lütfen internet bağlantınızı kontrol edin.</string>
+    <string name="restore_data_title">Verileri Geri Yükle</string>
+    <string name="restore_data_message">Mevcut tüm verileriniz silinecek ve son yedeklemedeki verilerle değiştirilecektir. Bu işlem geri alınamaz. Onaylıyor musunuz?</string>
+    <string name="restore_data_confirm">Evet, Geri Yükle</string>
+    <string name="restoring_dialog_title">Geri Yükleniyor</string>
+    <string name="restoring_dialog_message">Yedekleriniz indiriliyor, lütfen bekleyin...</string>
+    <string name="restore_success_restarting">Veriler başarıyla geri yüklendi. Uygulama yeniden başlatılıyor.</string>
+    <string name="restore_error_no_backup">Geri yüklenecek bir yedek bulunamadı.</string>
+    <string name="restore_error_download">Yedek indirilemedi. İnternet bağlantınızı veya Google Drive izinlerinizi kontrol edin.</string>
+    <string name="restore_error_validation">Yedek dosyası bozuk veya geçersiz. Lütfen yeni bir yedek almayı deneyin.</string>
+    <string name="restore_error_generic">Dosyalar geri yüklenemedi. Cihazınızda yeterli alan olduğundan emin olun.</string>
+    <string name="restore_error_unknown">Bilinmeyen bir hata oluştu. Lütfen daha sonra tekrar deneyin.</string>
+    <string name="restore_failed_title">Geri Yükleme Başarısız</string>
+    <string name="delete_all_data_title">Tüm Verileri Sil</string>
+    <string name="delete_all_data_message">Bu işlem, hem bu cihazdaki tüm arşivlenmiş dosyalarınızı hem de Google Drive\'daki yedeğinizi kalıcı olarak silecektir. Bu işlem geri alınamaz. Emin misiniz?</string>
+    <string name="delete_all_data_confirm">Evet, Hepsini Sil</string>
+    <string name="deleting_data_title">Veriler Siliniyor</string>
+    <string name="deleting_data_message">Tüm verileriniz siliniyor...</string>
+    <string name="delete_data_success">Tüm verileriniz başarıyla silindi.</string>
+    <string name="welcome_message">Hoş geldin, %1$s</string>
+    <string name="sign_in_failed">Google ile giriş başarısız oldu.</string>
+    <string name="sign_out_success">Oturum kapatıldı.</string>
+    <string name="sign_in_cancelled">Google ile giriş iptal edildi.</string>
+    <string name="sign_in_failed_with_error">Giriş başarısız oldu. Hata kodu: %1$d</string>
+    <string name="restore_successful">Veriler başarıyla geri yüklendi.</string>
+    <string name="restore_failed">Geri yükleme başarısız oldu.</string>
+    <string name="no_email_client">Bu isteği işleyecek bir e-posta uygulaması bulunamadı.</string>
+    <string name="camera_permission_needed">Kamera izni olmadan bu özellik kullanılamaz.</string>
+    <string name="no_other_category_to_move">Taşınacak başka kategori bulunmuyor.</string>
+    <string name="file_already_exists_with_name">\'%1$s\' adında bir dosya zaten var.</string>
+    <string name="this_file_already_exists">Bu dosya zaten \'%1$s\' adıyla mevcut.</string>
+
+
 </resources>
+
