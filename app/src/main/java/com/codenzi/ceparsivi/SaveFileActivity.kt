@@ -131,9 +131,11 @@ class SaveFileActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
     private fun updateCategoryDropdown() {
         val allCategories = CategoryManager.getCategories(this)
         val defaultCategories = CategoryManager.getDefaultCategories(this)
+        // Sadece kullanıcı tarafından oluşturulan kategorileri al ve sırala
         val userCategories = allCategories.filter { !defaultCategories.contains(it) }.sorted()
 
         val dropdownList = mutableListOf(selectCategoryString)
+        // Sadece kullanıcı tarafından oluşturulan kategorileri listeye ekle
         dropdownList.addAll(userCategories)
         dropdownList.add(addNewCategoryString)
 

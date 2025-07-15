@@ -186,7 +186,7 @@
     <string name="premium_main_description">Reklamsız ve kesintisiz bir kullanım için Smart Archive Premium\'a geçin, gelecekteki geliştirmeleri destekleyin!</string>
     <string name="premium_plan_yearly">YILLIK</string>
     <string name="premium_plan_monthly">AYLIK</string>
-    <string name="premium_yearly_deal_badge">%40 TASARRUF</string>
+    <string name="premium_yearly_deal_badge">%%%d TASARRUF</string>
     <string name="premium_price_format_monthly">%1$s / ay</string>
     <string name="premium_price_format_yearly">%1$s / yıl</string>
     <string name="premium_feature_1">Tüm Reklamları Kaldırın</string>

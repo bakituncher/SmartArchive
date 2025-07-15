@@ -172,8 +172,10 @@ class LoginSuggestionActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 dialog.dismiss()
                 if (result == RestoreResult.SUCCESS) {
-                    // DEĞİŞİKLİK: Geri yükleme sonrası ayarları tamamla
                     driveHelper?.finalizeRestore(applicationContext)
+                    // DÜZELTME: Geri yükleme sonrası verilerin yeniden okunması için önbelleği temizle
+                    CategoryManager.invalidate()
+                    FileHashManager.invalidate()
                     Toast.makeText(applicationContext, getString(R.string.restore_successful), Toast.LENGTH_LONG).show()
                     navigateToMain(markAsSeen = true, shouldRestart = true)
                 } else {
