@@ -54,10 +54,13 @@ class LoginSuggestionActivity : AppCompatActivity() {
     }
 
     private fun setupTermsAndConditions() {
-        binding.termsCheckbox.movementMethod = LinkMovementMethod.getInstance()
+        binding.termsTextView.movementMethod = LinkMovementMethod.getInstance()
         updateButtonState(false)
-        binding.termsCheckbox.setOnCheckedChangeListener { _, isChecked ->
+        binding.termsCheckboxControl.setOnCheckedChangeListener { _, isChecked ->
             updateButtonState(isChecked)
+        }
+        binding.termsTextView.setOnClickListener {
+            binding.termsCheckboxControl.toggle()
         }
         binding.buttonSignIn.setOnClickListener { checkActionButtons { signIn() } }
         binding.textMaybeLater.setOnClickListener { checkActionButtons { navigateToMain(markAsSeen = true) } }
@@ -71,7 +74,7 @@ class LoginSuggestionActivity : AppCompatActivity() {
     }
 
     private fun checkActionButtons(action: () -> Unit) {
-        if (binding.termsCheckbox.isChecked) {
+        if (binding.termsCheckboxControl.isChecked) {
             action()
         } else {
             Toast.makeText(this, getString(R.string.accept_terms_to_continue), Toast.LENGTH_SHORT).show()
