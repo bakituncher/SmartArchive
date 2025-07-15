@@ -161,43 +161,59 @@ class LoginSuggestionActivity : AppCompatActivity() {
 
     private fun performRestore() {
         val dialog = AlertDialog.Builder(this)
-            .setTitle(getString(R.string.restoring_data_title))
-            .setMessage(getString(R.string.restoring_data_message))
+            .setTitle(getString(R.string.restoring_dialog_title))
+            .setMessage(getString(R.string.restoring_dialog_message))
             .setCancelable(false)
-            .setView(R.layout.dialog_progress)
             .show()
-
         lifecycleScope.launch {
-            val result = driveHelper?.restoreData()
+            val result = withContext(Dispatchers.IO) { driveHelper?.restoreData() }
             withContext(Dispatchers.Main) {
                 dialog.dismiss()
-                if (result == RestoreResult.SUCCESS) {
-                    driveHelper?.finalizeRestore(applicationContext)
-                    // DÜZELTME: Geri yükleme sonrası verilerin yeniden okunması için önbelleği temizle
-                    CategoryManager.invalidate()
-                    FileHashManager.invalidate()
-                    Toast.makeText(applicationContext, getString(R.string.restore_successful), Toast.LENGTH_LONG).show()
-                    navigateToMain(markAsSeen = true, shouldRestart = true)
-                } else {
-                    Toast.makeText(applicationContext, getString(R.string.restore_failed), Toast.LENGTH_LONG).show()
-                    navigateToMain(markAsSeen = true)
+                when (result) {
+                    RestoreResult.SUCCESS -> {
+                        driveHelper?.finalizeRestore(applicationContext)
+                        CategoryManager.invalidate()
+                        FileHashManager.invalidate()
+                        Toast.makeText(this@LoginSuggestionActivity, getString(R.string.restore_success_restarting), Toast.LENGTH_LONG).show()
+                        restartApp()
+                    }
+                    RestoreResult.NO_BACKUP_FOUND -> showRestoreError(getString(R.string.restore_error_no_backup))
+                    RestoreResult.DOWNLOAD_FAILED -> showRestoreError(getString(R.string.restore_error_download))
+                    RestoreResult.VALIDATION_FAILED -> showRestoreError(getString(R.string.restore_error_validation))
+                    RestoreResult.RESTORE_FAILED -> showRestoreError(getString(R.string.restore_error_generic))
+                    else -> showRestoreError(getString(R.string.restore_error_unknown))
                 }
             }
         }
     }
 
-    private fun navigateToMain(markAsSeen: Boolean, shouldRestart: Boolean = false) {
+    private fun showRestoreError(message: String) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.restore_failed_title))
+            .setMessage(message)
+            .setPositiveButton(getString(R.string.ok), null)
+            .setOnDismissListener {
+                // Hata durumunda bile ana ekrana gitmeye devam et
+                navigateToMain(markAsSeen = true)
+            }
+            .show()
+    }
+
+    private fun navigateToMain(markAsSeen: Boolean) {
         if (markAsSeen) {
             val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
             prefs.edit().putBoolean("has_seen_login_suggestion", true).apply()
         }
-
-        val intent = Intent(this, MainActivity::class.java).apply {
-            if (shouldRestart) {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            }
-        }
+        val intent = Intent(this, MainActivity::class.java)
         startActivity(intent)
         finish()
+    }
+
+    private fun restartApp() {
+        val intent = packageManager.getLaunchIntentForPackage(packageName)
+        val mainIntent = Intent.makeRestartActivityTask(intent!!.component)
+        startActivity(mainIntent)
+        finishAffinity()
+        Runtime.getRuntime().exit(0)
     }
 }
