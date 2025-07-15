@@ -189,6 +189,26 @@
     <string name="no_other_category_to_move">There are no other categories to move to.</string>
     <string name="file_already_exists_with_name">A file with the name \'%1$s\' already exists.</string>
     <string name="this_file_already_exists">This file already exists as \'%1$s\'.</string>
+    <string name="settings_category_premium">Go Premium</string>
+    <string name="premium_main_title">Upgrade Your Archive Experience</string>
+    <string name="premium_main_description">Switch to Smart Archive Premium for an ad-free, uninterrupted experience and support future development!</string>
+    <string name="premium_plan_yearly">YEARLY</string>
+    <string name="premium_plan_monthly">MONTHLY</string>
+    <string name="premium_yearly_deal_badge">SAVE 40%</string>
+    <string name="premium_price_format_monthly">%1$s / month</string>
+    <string name="premium_price_format_yearly">%1$s / year</string>
+    <string name="premium_feature_1">Remove All Ads</string>
+    <string name="premium_feature_2">Priority Support</string>
+    <string name="premium_feature_3">Support The App\'s Development</string>
+    <string name="premium_button_text">Start Premium</string>
+    <string name="premium_thanks_title">Welcome to Premium Privileges!</string>
+    <string name="premium_thanks_description">Thank you for supporting Smart Archive. All ads have been removed and your premium features are activated.</string>
+    <string name="purchase_success">Purchase successful! Ads are now disabled.</string>
+    <string name="purchase_failed">Purchase failed. Please try again later.</string>
+    <string name="purchase_pending">Purchase is pending. You will get access once it\'s approved.</string>
+    <string name="purchase_cancelled">Purchase cancelled.</string>
+    <string name="product_not_found">Product is not available at the moment. Please try again later.</string>
+
 
 
 </resources>

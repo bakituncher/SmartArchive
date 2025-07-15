@@ -1,5 +1,3 @@
-// Konum: app/src/main/java/com/codenzi/ceparsivi/SettingsActivity.kt
-
 package com.codenzi.ceparsivi
 
 import android.Manifest
@@ -31,6 +29,7 @@ import com.google.android.gms.tasks.Task
 import com.google.api.services.drive.DriveScopes
 import com.google.android.ump.UserMessagingPlatform
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -42,6 +41,8 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
     private lateinit var binding: ActivitySettingsBinding
     private lateinit var googleSignInClient: GoogleSignInClient
     private var driveHelper: GoogleDriveHelper? = null
+    private lateinit var billingManager: BillingManager
+    private var selectedPlanId: String = BillingManager.YEARLY_SKU
 
     private val signInLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
@@ -72,8 +73,9 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         setupGoogleSignIn()
         loadSettings()
         setupPrivacyOptionsButton()
+        setupBilling()
+        setupPlanSelectionListeners()
 
-        // Click Listeners
         binding.textViewTheme.setOnClickListener { showThemeSelectionDialog() }
         binding.textViewManageCategories.setOnClickListener { showManageCategoriesDialog() }
         binding.textViewPrivacyPolicy.setOnClickListener { openPrivacyPolicyLink() }
@@ -89,6 +91,103 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         binding.switchAutoBackup.setOnCheckedChangeListener { _, isChecked ->
             handleAutoBackupSwitch(isChecked)
         }
+    }
+
+    private fun setupBilling() {
+        billingManager = BillingManager(this) { message ->
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        }
+        lifecycleScope.launch {
+            billingManager.isPremium.collectLatest { isPremium ->
+                updatePremiumUI(isPremium)
+            }
+        }
+        lifecycleScope.launch {
+            billingManager.productDetails.collectLatest { products ->
+                val monthlyDetails = products[BillingManager.MONTHLY_SKU]
+                val yearlyDetails = products[BillingManager.YEARLY_SKU]
+
+                // Fiyatları ekrana yazdır
+                monthlyDetails?.let {
+                    val price = it.subscriptionOfferDetails?.first()?.pricingPhases?.pricingPhaseList?.first()?.formattedPrice ?: ""
+                    binding.textMonthlyPrice.text = getString(R.string.premium_price_format_monthly, price)
+                }
+                yearlyDetails?.let {
+                    val price = it.subscriptionOfferDetails?.first()?.pricingPhases?.pricingPhaseList?.first()?.formattedPrice ?: ""
+                    binding.textYearlyPrice.text = getString(R.string.premium_price_format_yearly, price)
+                }
+
+                // --- YENİ EKLENEN DİNAMİK YÜZDE HESAPLAMA KISMI ---
+                if (monthlyDetails != null && yearlyDetails != null) {
+                    try {
+                        val monthlyPriceMicros = monthlyDetails.subscriptionOfferDetails?.first()?.pricingPhases?.pricingPhaseList?.first()?.priceAmountMicros ?: 0L
+                        val yearlyPriceMicros = yearlyDetails.subscriptionOfferDetails?.first()?.pricingPhases?.pricingPhaseList?.first()?.priceAmountMicros ?: 0L
+
+                        if (monthlyPriceMicros > 0 && yearlyPriceMicros > 0) {
+                            val totalMonthlyForYear = monthlyPriceMicros * 12
+                            val savings = totalMonthlyForYear - yearlyPriceMicros
+                            val savingsPercentage = (savings.toDouble() / totalMonthlyForYear.toDouble() * 100).toInt()
+
+                            if (savingsPercentage > 0) {
+                                binding.badgeYearlyDeal.text = "%$savingsPercentage TASARRUF"
+                                binding.badgeYearlyDeal.visibility = View.VISIBLE
+                            } else {
+                                binding.badgeYearlyDeal.visibility = View.GONE
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // Hesaplama sırasında bir hata olursa rozeti gizle
+                        binding.badgeYearlyDeal.visibility = View.GONE
+                        Log.e("SettingsActivity", "Tasarruf oranı hesaplanamadı.", e)
+                    }
+                }
+                // --- HESAPLAMA KISMI SONU ---
+            }
+        }
+    }
+
+    private fun setupPlanSelectionListeners() {
+        binding.cardMonthlyPlan.setOnClickListener { selectPlan(BillingManager.MONTHLY_SKU) }
+        binding.cardYearlyPlan.setOnClickListener { selectPlan(BillingManager.YEARLY_SKU) }
+        binding.buttonUpgradeToPremium.setOnClickListener {
+            billingManager.launchPurchaseFlow(this, selectedPlanId)
+        }
+    }
+
+    private fun selectPlan(planId: String) {
+        selectedPlanId = planId
+        val selectedStrokeWidth = (2 * resources.displayMetrics.density).toInt()
+        val defaultStrokeWidth = (1 * resources.displayMetrics.density).toInt()
+
+        binding.cardMonthlyPlan.strokeColor = ContextCompat.getColor(this, if (planId == BillingManager.MONTHLY_SKU) R.color.primary else R.color.outline)
+        binding.cardMonthlyPlan.strokeWidth = if (planId == BillingManager.MONTHLY_SKU) selectedStrokeWidth else defaultStrokeWidth
+
+        binding.cardYearlyPlan.strokeColor = ContextCompat.getColor(this, if (planId == BillingManager.YEARLY_SKU) R.color.primary else R.color.outline)
+        binding.cardYearlyPlan.strokeWidth = if (planId == BillingManager.YEARLY_SKU) selectedStrokeWidth else defaultStrokeWidth
+    }
+
+    private fun updatePremiumUI(isPremium: Boolean) {
+        if (isPremium) {
+            binding.premiumIconHeader.setImageResource(R.drawable.ic_cloud_done)
+            binding.premiumCardTitle.text = getString(R.string.premium_thanks_title)
+            binding.premiumCardDescription.text = getString(R.string.premium_thanks_description)
+            binding.premiumPlansContainer.visibility = View.GONE
+            binding.premiumFeaturesList.visibility = View.GONE
+            binding.buttonUpgradeToPremium.visibility = View.GONE
+        } else {
+            selectPlan(BillingManager.YEARLY_SKU)
+            binding.premiumPlansContainer.visibility = View.VISIBLE
+            binding.premiumFeaturesList.visibility = View.VISIBLE
+            binding.buttonUpgradeToPremium.visibility = View.VISIBLE
+            binding.premiumIconHeader.setImageResource(R.drawable.ic_intro_welcome)
+            binding.premiumCardTitle.text = getString(R.string.premium_main_title)
+            binding.premiumCardDescription.text = getString(R.string.premium_main_description)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        billingManager.queryPurchases()
     }
 
     private fun openContactUsEmail() {

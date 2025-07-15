@@ -181,6 +181,29 @@
     <string name="no_other_category_to_move">Taşınacak başka kategori bulunmuyor.</string>
     <string name="file_already_exists_with_name">\'%1$s\' adında bir dosya zaten var.</string>
     <string name="this_file_already_exists">Bu dosya zaten \'%1$s\' adıyla mevcut.</string>
+    <string name="settings_category_premium">Premium\'a Geç</string>
+    <string name="premium_main_title">Arşiv Deneyiminizi Yükseltin</string>
+    <string name="premium_main_description">Reklamsız ve kesintisiz bir kullanım için Smart Archive Premium\'a geçin, gelecekteki geliştirmeleri destekleyin!</string>
+    <string name="premium_plan_yearly">YILLIK</string>
+    <string name="premium_plan_monthly">AYLIK</string>
+    <string name="premium_yearly_deal_badge">%40 TASARRUF</string>
+    <string name="premium_price_format_monthly">%1$s / ay</string>
+    <string name="premium_price_format_yearly">%1$s / yıl</string>
+    <string name="premium_feature_1">Tüm Reklamları Kaldırın</string>
+    <string name="premium_feature_2">Öncelikli Destek Alın</string>
+    <string name="premium_feature_3">Uygulamanın Gelişimini Destekleyin</string>
+    <string name="premium_button_text">Premium\'u Başlat</string>
+    <string name="premium_thanks_title">Premium Ayrıcalıklarına Hoş Geldiniz!</string>
+    <string name="premium_thanks_description">Akıllı Arşiv\'i desteklediğiniz için teşekkür ederiz. Tüm reklamlar kaldırıldı ve premium özellikleriniz aktif edildi.</string>
+    <string name="purchase_success">Satın alma başarılı! Reklamlar artık devre dışı.</string>
+    <string name="purchase_failed">Satın alma başarısız oldu. Lütfen daha sonra tekrar deneyin.</string>
+    <string name="purchase_pending">Satın alma işlemi beklemede. Onaylandığında erişiminiz sağlanacaktır.</string>
+    <string name="purchase_cancelled">Satın alma iptal edildi.</string>
+    <string name="product_not_found">Ürün şu anda mevcut değil. Lütfen daha sonra tekrar deneyin.</string>
+
+
+
+
 
 
 </resources>

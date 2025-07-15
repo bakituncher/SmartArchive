@@ -1,5 +1,3 @@
-// Konum: app/src/main/java/com/codenzi/ceparsivi/MainActivity.kt
-
 package com.codenzi.ceparsivi
 
 import android.Manifest
@@ -41,6 +39,7 @@ import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -48,6 +47,7 @@ import java.text.SimpleDateFormat
 import java.util.ArrayDeque
 import java.util.Date
 import java.util.Locale
+import android.view.View
 
 class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, ActionMode.Callback, FileDetailsBottomSheet.FileDetailsListener {
 
@@ -62,9 +62,10 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     private val fileUrisToProcess = ArrayDeque<Uri>()
     private var latestTmpUri: Uri? = null
     private var pendingCameraAction: (() -> Unit)? = null
-
     private var mInterstitialAd: InterstitialAd? = null
     private val TAG = "MainActivity_AdMob"
+    private lateinit var billingManager: BillingManager
+    private var isUserPremium = false
 
     private enum class SortOrder {
         DATE_DESC, NAME_ASC, NAME_DESC, SIZE_ASC, SIZE_DESC
@@ -117,8 +118,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        loadBanner()
-        loadInterstitialAd()
+        setupBillingForMain()
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -147,9 +147,27 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         }
     }
 
+    private fun setupBillingForMain() {
+        billingManager = BillingManager(this) {}
+        lifecycleScope.launch {
+            billingManager.isPremium.collectLatest { isPremium ->
+                isUserPremium = isPremium
+                binding.adViewContainer.visibility = if (isPremium) View.GONE else View.VISIBLE
+                if (!isPremium && adView == null) {
+                    loadBanner()
+                    loadInterstitialAd()
+                } else if (isPremium) {
+                    adView?.destroy()
+                    adView = null
+                }
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
-        adView?.resume()
+        billingManager.queryPurchases()
+        if (!isUserPremium) adView?.resume()
         val newTheme = ThemeManager.getTheme(this)
         if (activeTheme != null && activeTheme != newTheme) {
             ThemeManager.applyTheme(newTheme)
@@ -209,6 +227,8 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     }
 
     private fun showInterstitialAd() {
+        if (isUserPremium) return
+
         if (mInterstitialAd != null) {
             mInterstitialAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
                 override fun onAdDismissedFullScreenContent() {
@@ -229,7 +249,9 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             mInterstitialAd?.show(this)
         } else {
             Log.d(TAG, "The interstitial ad wasn't ready yet.")
-            loadInterstitialAd()
+            if (!isUserPremium) {
+                loadInterstitialAd()
+            }
         }
     }
 
