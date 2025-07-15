@@ -208,6 +208,11 @@
     <string name="intro_backup_description">Google Drive entegrasyonu ile tüm arşivinizi tek dokunuşla yedekleyin ve dilediğiniz zaman geri yükleyin.</string>
 
     <string name="default_file_name">isimsiz_dosya_%1$d</string>
+    <string name="action_download_data">Verilerimi İndir</string>
+    <string name="download_data_success">Verileriniz İndirilenler klasörüne başarıyla kaydedildi: %1$s</string>
+    <string name="download_data_error">Veriler dışa aktarılırken bir hata oluştu.</string>
+    <string name="exporting_data_title">Veriler Dışa Aktarılıyor</string>
+    <string name="exporting_data_message">Verileriniz paketleniyor, lütfen bekleyin...</string>
 
 
 

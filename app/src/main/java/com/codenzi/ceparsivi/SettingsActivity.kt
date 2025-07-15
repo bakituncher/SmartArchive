@@ -3,11 +3,14 @@ package com.codenzi.ceparsivi
 import android.Manifest
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import android.view.View
 import android.widget.Toast
@@ -32,9 +35,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.CategoryDialogListener {
 
@@ -62,6 +70,17 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             }
         }
 
+    // VERİ İNDİRME İZNİ İÇİN YENİ EKLENDİ
+    private val requestStoragePermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
+            if (isGranted) {
+                exportUserData() // İzin verildiyse işlemi tekrar başlat
+            } else {
+                Toast.makeText(this, "Storage permission is required to save the file.", Toast.LENGTH_LONG).show()
+            }
+        }
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
@@ -81,6 +100,8 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         binding.textViewPrivacyPolicy.setOnClickListener { openPrivacyPolicyLink() }
         binding.textViewTermsOfUse.setOnClickListener { openTermsOfUseLink() }
         binding.textViewContactUs.setOnClickListener { openContactUsEmail() }
+        binding.textViewDownloadData.setOnClickListener { exportUserData() }
+
 
         binding.buttonDriveSignInOut.setOnClickListener {
             if (GoogleSignIn.getLastSignedInAccount(this) == null) signIn() else signOut()
@@ -492,6 +513,98 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             restartApp()
         }
     }
+
+    private fun exportUserData() {
+        // Android 10 (API 29) ve üzeri için izin gerekmez.
+        // Android 9 (API 28) ve altı için WRITE_EXTERNAL_STORAGE izni kontrolü yapılır.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                requestStoragePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                return
+            }
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(getString(R.string.exporting_data_title))
+            .setMessage(getString(R.string.exporting_data_message))
+            .setCancelable(false)
+            .show()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            var tempZipFile: File? = null
+            try {
+                val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                val fileName = "smart_archive_export_$timeStamp.zip"
+                tempZipFile = File(cacheDir, "temp_export.zip")
+                if (tempZipFile.exists()) tempZipFile.delete()
+
+                val prefsToBackup = arrayOf("AppCategories", "FileCategoryMapping", "FileHashes", "ThemePrefs")
+
+                ZipOutputStream(FileOutputStream(tempZipFile)).use { zos ->
+                    val archiveDir = File(filesDir, "arsiv")
+                    if (archiveDir.exists() && archiveDir.isDirectory) {
+                        archiveDir.walk().filter { it.isFile }.forEach { file ->
+                            val zipPath = "files/arsiv/" + file.relativeTo(archiveDir)
+                            val entry = ZipEntry(zipPath.replace(File.separatorChar, '/'))
+                            zos.putNextEntry(entry)
+                            file.inputStream().use { it.copyTo(zos) }
+                            zos.closeEntry()
+                        }
+                    }
+                    val prefsDir = File(applicationInfo.dataDir, "shared_prefs")
+                    prefsToBackup.forEach { prefName ->
+                        val prefsFile = File(prefsDir, "$prefName.xml")
+                        if (prefsFile.exists()) {
+                            val zipPath = "shared_prefs/$prefName.xml"
+                            val entry = ZipEntry(zipPath)
+                            zos.putNextEntry(entry)
+                            prefsFile.inputStream().use { it.copyTo(zos) }
+                            zos.closeEntry()
+                        }
+                    }
+                }
+
+                // Cihaz versiyonuna göre kaydetme işlemi
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val resolver = contentResolver
+                    val contentValues = ContentValues().apply {
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                        put(MediaStore.MediaColumns.MIME_TYPE, "application/zip")
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    }
+                    val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                    if (uri != null) {
+                        resolver.openOutputStream(uri)?.use { outputStream ->
+                            tempZipFile.inputStream().use { it.copyTo(outputStream) }
+                        }
+                    } else {
+                        throw IOException("Failed to create new MediaStore entry for API 29+.")
+                    }
+                } else {
+                    @Suppress("DEPRECATION")
+                    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    val destinationFile = File(downloadsDir, fileName)
+                    FileOutputStream(destinationFile).use { outputStream ->
+                        tempZipFile.inputStream().use { it.copyTo(outputStream) }
+                    }
+                }
+
+                withContext(Dispatchers.Main) {
+                    dialog.dismiss()
+                    Toast.makeText(this@SettingsActivity, getString(R.string.download_data_success, fileName), Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Log.e("ExportData", "Error exporting user data", e)
+                withContext(Dispatchers.Main) {
+                    dialog.dismiss()
+                    Toast.makeText(this@SettingsActivity, getString(R.string.download_data_error), Toast.LENGTH_LONG).show()
+                }
+            } finally {
+                tempZipFile?.delete()
+            }
+        }
+    }
+
 
     override fun onCategorySaved(newName: String, oldName: String?) {
         if (oldName == null) {

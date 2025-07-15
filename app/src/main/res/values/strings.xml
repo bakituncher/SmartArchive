@@ -215,7 +215,13 @@
     <string name="intro_backup_title">Secure Backup</string>
     <string name="intro_backup_description">Back up your entire archive with a single tap and restore it whenever you want with Google Drive integration.</string>
 
+
     <string name="default_file_name">untitled_file_%1$d</string>
+    <string name="action_download_data">Download My Data</string>
+    <string name="download_data_success">Data successfully saved to Downloads folder: %1$s</string>
+    <string name="download_data_error">An error occurred while exporting data.</string>
+    <string name="exporting_data_title">Exporting Data</string>
+    <string name="exporting_data_message">Your data is being packaged, please wait...</string>
 
 
 
