@@ -438,6 +438,8 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             setBackupButtonsEnabled(true)
             when (result) {
                 RestoreResult.SUCCESS -> {
+                    // DEĞİŞİKLİK: Geri yükleme sonrası ayarları tamamla
+                    driveHelper?.finalizeRestore(applicationContext)
                     CategoryManager.invalidate()
                     FileHashManager.invalidate()
                     Toast.makeText(this@SettingsActivity, getString(R.string.restore_success_restarting), Toast.LENGTH_LONG).show()

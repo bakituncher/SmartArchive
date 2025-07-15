@@ -14,25 +14,27 @@ import com.codenzi.ceparsivi.databinding.ActivityIntroBinding
 class IntroActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityIntroBinding
-    private val introSliderAdapter = IntroSliderAdapter(
-        listOf(
-            IntroSlide(
-                "Hoş Geldiniz!",
-                "Akıllı Arşiv, tüm belgelerinizi, faturalarınızı ve önemli dosyalarınızı tek bir yerde güvenle saklamanızı sağlar.",
-                R.drawable.ic_intro_welcome
-            ),
-            IntroSlide(
-                "Kolayca Arşivleyin",
-                "Diğer uygulamalardan dosya paylaşarak veya doğrudan fotoğraf çekerek belgelerinizi saniyeler içinde arşivleyin.",
-                R.drawable.ic_intro_add_file
-            ),
-            IntroSlide(
-                "Güvenli Yedekleme",
-                "Google Drive entegrasyonu ile tüm arşivinizi tek dokunuşla yedekleyin ve dilediğiniz zaman geri yükleyin.",
-                R.drawable.ic_intro_backup
+    private val introSliderAdapter by lazy {
+        IntroSliderAdapter(
+            listOf(
+                IntroSlide(
+                    getString(R.string.intro_welcome_title),
+                    getString(R.string.intro_welcome_description),
+                    R.drawable.ic_intro_welcome
+                ),
+                IntroSlide(
+                    getString(R.string.intro_archive_title),
+                    getString(R.string.intro_archive_description),
+                    R.drawable.ic_intro_add_file
+                ),
+                IntroSlide(
+                    getString(R.string.intro_backup_title),
+                    getString(R.string.intro_backup_description),
+                    R.drawable.ic_intro_backup
+                )
             )
         )
-    )
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

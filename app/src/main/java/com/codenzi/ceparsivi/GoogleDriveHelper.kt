@@ -23,7 +23,8 @@ import java.util.zip.ZipException
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import com.google.api.services.drive.model.File as DriveFile
-import java.util.zip.ZipEntry // <<< HATA GİDERİLDİ: EKSİK OLAN IMPORT SATIRI EKLENDİ
+import java.util.zip.ZipEntry
+import androidx.core.content.edit
 
 // Geri yükleme işleminin sonucunu bildiren, daha anlaşılır bir yapı
 enum class RestoreResult {
@@ -191,11 +192,9 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
             cleanLocalData()
 
             // Adım 4: Doğrulanmış verileri kalıcı yerlerine taşı
-            val appDataDir = context.filesDir.parentFile!!
-            if (!tempRestoreDir.renameTo(appDataDir)) {
-                // Eğer taşıma başarısız olursa (nadiren olur), kopyalamayı dene
-                tempRestoreDir.copyRecursively(appDataDir, overwrite = true)
-            }
+            val appDataDir = File(context.applicationInfo.dataDir)
+            tempRestoreDir.copyRecursively(appDataDir, overwrite = true)
+
 
             return@withContext RestoreResult.SUCCESS
 
@@ -214,6 +213,15 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
             if (tempRestoreDir.exists()) tempRestoreDir.deleteRecursively()
         }
     }
+    // YENİ EKLENDİ: Geri yükleme sonrası ayarları tamamlayan fonksiyon
+    fun finalizeRestore(context: Context) {
+        val prefs = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+        prefs.edit {
+            putBoolean("isFirstLaunch", false)
+            putBoolean("has_seen_login_suggestion", true)
+        }
+    }
+
 
     @Throws(IOException::class, ZipException::class)
     private fun unzip(zipFile: File, targetDirectory: File) {

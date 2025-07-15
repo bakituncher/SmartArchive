@@ -1,3 +1,5 @@
+// Konum: app/src/main/java/com/codenzi/ceparsivi/MainActivity.kt
+
 package com.codenzi.ceparsivi
 
 import android.Manifest
@@ -48,6 +50,9 @@ import java.util.ArrayDeque
 import java.util.Date
 import java.util.Locale
 import android.view.View
+// YENİ EKLENDİ: Rıza durumunu kontrol etmek için
+import com.google.android.ump.ConsentInformation
+import com.google.android.ump.UserMessagingPlatform
 
 class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, ActionMode.Callback, FileDetailsBottomSheet.FileDetailsListener {
 
@@ -66,6 +71,9 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     private val TAG = "MainActivity_AdMob"
     private lateinit var billingManager: BillingManager
     private var isUserPremium = false
+    // YENİ EKLENDİ: Rıza bilgisi nesnesi
+    private lateinit var consentInformation: ConsentInformation
+
 
     private enum class SortOrder {
         DATE_DESC, NAME_ASC, NAME_DESC, SIZE_ASC, SIZE_DESC
@@ -118,6 +126,9 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // YENİ EKLENDİ: Rıza bilgisi nesnesini başlat
+        consentInformation = UserMessagingPlatform.getConsentInformation(this)
+
         setupBillingForMain()
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
@@ -152,17 +163,24 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         lifecycleScope.launch {
             billingManager.isPremium.collectLatest { isPremium ->
                 isUserPremium = isPremium
-                binding.adViewContainer.visibility = if (isPremium) View.GONE else View.VISIBLE
                 if (!isPremium && adView == null) {
-                    loadBanner()
-                    loadInterstitialAd()
+                    // Reklamları yüklemeden önce reklam isteği iznini kontrol et
+                    if (consentInformation.canRequestAds()) {
+                        binding.adViewContainer.visibility = View.VISIBLE
+                        loadBanner()
+                        loadInterstitialAd()
+                    } else {
+                        binding.adViewContainer.visibility = View.GONE
+                    }
                 } else if (isPremium) {
                     adView?.destroy()
                     adView = null
+                    binding.adViewContainer.visibility = View.GONE
                 }
             }
         }
     }
+
 
     override fun onResume() {
         super.onResume()
@@ -188,10 +206,23 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     }
 
     private fun loadBanner() {
+        // Reklam isteği yapılamıyorsa, fonksiyonu erken bitir.
+        if (!consentInformation.canRequestAds()) {
+            return
+        }
+
         adView = AdView(this)
         binding.adViewContainer.addView(adView)
 
-        val adRequest = AdRequest.Builder().build()
+        // DEĞİŞİKLİK: Reklam isteğini rıza durumuna göre oluştur
+        val adRequestBuilder = AdRequest.Builder()
+        // Rıza durumu "Gerekli" ise (EEA/UK kullanıcısı ve izin vermedi), NPA parametresini ekle
+        if (consentInformation.consentStatus == ConsentInformation.ConsentStatus.REQUIRED) {
+            val extras = Bundle()
+            extras.putString("npa", "1")
+            adRequestBuilder.addNetworkExtrasBundle(com.google.ads.mediation.admob.AdMobAdapter::class.java, extras)
+        }
+        val adRequest = adRequestBuilder.build()
 
         val adWidth = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val windowMetrics = windowManager.currentWindowMetrics
@@ -211,7 +242,21 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     }
 
     private fun loadInterstitialAd() {
-        val adRequest = AdRequest.Builder().build()
+        // Reklam isteği yapılamıyorsa, fonksiyonu erken bitir.
+        if (!consentInformation.canRequestAds()) {
+            return
+        }
+
+        // DEĞİŞİKLİK: Reklam isteğini rıza durumuna göre oluştur
+        val adRequestBuilder = AdRequest.Builder()
+        // Rıza durumu "Gerekli" ise (EEA/UK kullanıcısı ve izin vermedi), NPA parametresini ekle
+        if (consentInformation.consentStatus == ConsentInformation.ConsentStatus.REQUIRED) {
+            val extras = Bundle()
+            extras.putString("npa", "1")
+            adRequestBuilder.addNetworkExtrasBundle(com.google.ads.mediation.admob.AdMobAdapter::class.java, extras)
+        }
+        val adRequest = adRequestBuilder.build()
+
         val adUnitId = getString(R.string.admob_interstitial_ad_unit_id)
         InterstitialAd.load(this, adUnitId, adRequest, object : InterstitialAdLoadCallback() {
             override fun onAdFailedToLoad(adError: LoadAdError) {
@@ -225,6 +270,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             }
         })
     }
+
 
     private fun showInterstitialAd() {
         if (isUserPremium) return

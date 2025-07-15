@@ -200,6 +200,14 @@
     <string name="purchase_pending">Satın alma işlemi beklemede. Onaylandığında erişiminiz sağlanacaktır.</string>
     <string name="purchase_cancelled">Satın alma iptal edildi.</string>
     <string name="product_not_found">Ürün şu anda mevcut değil. Lütfen daha sonra tekrar deneyin.</string>
+    <string name="intro_welcome_title">Hoş Geldiniz!</string>
+    <string name="intro_welcome_description">Akıllı Arşiv, tüm belgelerinizi, faturalarınızı ve önemli dosyalarınızı tek bir yerde güvenle saklamanızı sağlar.</string>
+    <string name="intro_archive_title">Kolayca Arşivleyin</string>
+    <string name="intro_archive_description">Diğer uygulamalardan dosya paylaşarak veya doğrudan fotoğraf çekerek belgelerinizi saniyeler içinde arşivleyin.</string>
+    <string name="intro_backup_title">Güvenli Yedekleme</string>
+    <string name="intro_backup_description">Google Drive entegrasyonu ile tüm arşivinizi tek dokunuşla yedekleyin ve dilediğiniz zaman geri yükleyin.</string>
+
+    <string name="default_file_name">isimsiz_dosya_%1$d</string>
 
 
 

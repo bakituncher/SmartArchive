@@ -267,7 +267,7 @@ class SaveFileActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
                 if (colIndex >= 0) return it.getString(colIndex)
             }
         }
-        return uri.path?.let { File(it).name } ?: "isimsiz_dosya_${System.currentTimeMillis()}"
+        return uri.path?.let { File(it).name } ?: getString(R.string.default_file_name, System.currentTimeMillis())
     }
 
     private fun finishWithResult(resultCode: Int) {

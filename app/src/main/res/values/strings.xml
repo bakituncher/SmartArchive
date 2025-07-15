@@ -208,6 +208,14 @@
     <string name="purchase_pending">Purchase is pending. You will get access once it\'s approved.</string>
     <string name="purchase_cancelled">Purchase cancelled.</string>
     <string name="product_not_found">Product is not available at the moment. Please try again later.</string>
+    <string name="intro_welcome_title">Welcome!</string>
+    <string name="intro_welcome_description">Smart Archive allows you to securely store all your documents, invoices, and important files in one place.</string>
+    <string name="intro_archive_title">Archive Easily</string>
+    <string name="intro_archive_description">Archive your documents in seconds by sharing files from other apps or by taking a photo directly.</string>
+    <string name="intro_backup_title">Secure Backup</string>
+    <string name="intro_backup_description">Back up your entire archive with a single tap and restore it whenever you want with Google Drive integration.</string>
+
+    <string name="default_file_name">untitled_file_%1$d</string>
 
 
 
