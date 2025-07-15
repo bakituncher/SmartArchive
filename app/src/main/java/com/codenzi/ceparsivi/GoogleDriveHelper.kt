@@ -41,7 +41,7 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
     private val drive: Drive
     private val appFolderName = "SmartArchiveBackup"
     private val backupFileName = "smart_archive_backup.zip"
-    private val prefsToBackup = arrayOf("AppCategories", "FileCategoryMapping", "FileHashes", "ThemePrefs", "AppPrefs")
+    private val prefsToBackup = arrayOf("AppCategories", "FileCategoryMapping", "FileHashes", "ThemePrefs")
 
     init {
         val credential = GoogleAccountCredential.usingOAuth2(
@@ -216,10 +216,11 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
     // YENİ EKLENDİ: Geri yükleme sonrası ayarları tamamlayan fonksiyon
     fun finalizeRestore(context: Context) {
         val prefs = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
-        prefs.edit {
-            putBoolean("isFirstLaunch", false)
-            putBoolean("has_seen_login_suggestion", true)
-        }
+        // Değişiklik: .commit() kullanarak verinin senkronize yazılmasını sağla
+        prefs.edit()
+            .putBoolean("isFirstLaunch", false)
+            .putBoolean("has_seen_login_suggestion", true)
+            .commit()
     }
 
 
