@@ -25,8 +25,8 @@ class BillingManager(
 
     companion object {
         private const val TAG = "BillingManager"
-        const val YEARLY_SKU = "adfree-yearly"
-        const val MONTHLY_SKU = "adfree-monthly"
+        const val YEARLY_SKU = "yearly_premium_subscription"
+        const val MONTHLY_SKU = "monthly_premium_subscription"
         val ALL_SKUS = listOf(YEARLY_SKU, MONTHLY_SKU)
     }
 
