@@ -107,7 +107,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
                 val monthlyDetails = products[BillingManager.MONTHLY_SKU]
                 val yearlyDetails = products[BillingManager.YEARLY_SKU]
 
-                // Fiyatları ekrana yazdır
                 monthlyDetails?.let {
                     val price = it.subscriptionOfferDetails?.first()?.pricingPhases?.pricingPhaseList?.first()?.formattedPrice ?: ""
                     binding.textMonthlyPrice.text = getString(R.string.premium_price_format_monthly, price)
@@ -117,7 +116,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
                     binding.textYearlyPrice.text = getString(R.string.premium_price_format_yearly, price)
                 }
 
-                // --- YENİ EKLENEN DİNAMİK YÜZDE HESAPLAMA KISMI ---
                 if (monthlyDetails != null && yearlyDetails != null) {
                     try {
                         val monthlyPriceMicros = monthlyDetails.subscriptionOfferDetails?.first()?.pricingPhases?.pricingPhaseList?.first()?.priceAmountMicros ?: 0L
@@ -129,19 +127,17 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
                             val savingsPercentage = (savings.toDouble() / totalMonthlyForYear.toDouble() * 100).toInt()
 
                             if (savingsPercentage > 0) {
-                                binding.badgeYearlyDeal.text = "%$savingsPercentage TASARRUF"
+                                binding.badgeYearlyDeal.text = getString(R.string.premium_yearly_deal_badge, savingsPercentage)
                                 binding.badgeYearlyDeal.visibility = View.VISIBLE
                             } else {
                                 binding.badgeYearlyDeal.visibility = View.GONE
                             }
                         }
                     } catch (e: Exception) {
-                        // Hesaplama sırasında bir hata olursa rozeti gizle
                         binding.badgeYearlyDeal.visibility = View.GONE
                         Log.e("SettingsActivity", "Tasarruf oranı hesaplanamadı.", e)
                     }
                 }
-                // --- HESAPLAMA KISMI SONU ---
             }
         }
     }
@@ -438,7 +434,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             setBackupButtonsEnabled(true)
             when (result) {
                 RestoreResult.SUCCESS -> {
-                    // DEĞİŞİKLİK: Geri yükleme sonrası ayarları tamamla
                     driveHelper?.finalizeRestore(applicationContext)
                     CategoryManager.invalidate()
                     FileHashManager.invalidate()
@@ -463,10 +458,10 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
     }
 
     private fun restartApp() {
-        val intent = packageManager.getLaunchIntentForPackage(packageName)!!
-        val componentName = intent.component!!
-        val mainIntent = Intent.makeRestartActivityTask(componentName)
+        val intent = packageManager.getLaunchIntentForPackage(packageName)
+        val mainIntent = Intent.makeRestartActivityTask(intent!!.component)
         startActivity(mainIntent)
+        finishAffinity()
         Runtime.getRuntime().exit(0)
     }
 
@@ -488,8 +483,13 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         lifecycleScope.launch {
             withContext(Dispatchers.IO) { driveHelper?.deleteAllData() }
             dialog.dismiss()
+
+            CategoryManager.invalidate()
+            FileHashManager.invalidate()
+
             Toast.makeText(this@SettingsActivity, getString(R.string.delete_data_success), Toast.LENGTH_LONG).show()
-            checkLastBackup()
+
+            restartApp()
         }
     }
 
