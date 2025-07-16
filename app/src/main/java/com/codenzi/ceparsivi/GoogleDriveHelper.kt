@@ -167,43 +167,81 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
     suspend fun restoreData(): RestoreResult = withContext(Dispatchers.IO) {
         val tempZipFile = File(context.cacheDir, "restore_temp.zip")
         val tempRestoreDir = File(context.cacheDir, "restore_temp_dir")
+        val backupArsivDir = File(context.filesDir, "arsiv_pre_restore_backup")
+        val backupPrefsDir = File(context.cacheDir, "prefs_pre_restore_backup")
 
         try {
+            // Adım 1: Yedeği indir ve aç
             val backupMetadata = getBackupMetadata() ?: return@withContext RestoreResult.NO_BACKUP_FOUND
             val fileId = backupMetadata.first
 
-            // Adım 1: Yedeği indir
             if(tempZipFile.exists()) tempZipFile.delete()
             FileOutputStream(tempZipFile).use { fos ->
                 drive.files().get(fileId).executeMediaAndDownloadTo(fos)
             }
 
-            // Adım 2: Yedeği doğrula (geçici bir klasöre açarak)
             if (tempRestoreDir.exists()) tempRestoreDir.deleteRecursively()
             tempRestoreDir.mkdirs()
-            try {
-                unzip(tempZipFile, tempRestoreDir)
-            } catch (e: ZipException) {
-                Log.e("DriveHelper", "Backup validation failed: Invalid zip file", e)
-                return@withContext RestoreResult.VALIDATION_FAILED
+            unzip(tempZipFile, tempRestoreDir)
+
+            // Adım 2: Mevcut verileri "atomik olarak" değiştirmek için hazırla
+            val currentArsivDir = File(context.filesDir, "arsiv")
+            val currentPrefsDir = File(context.applicationInfo.dataDir, "shared_prefs")
+
+            val restoredArsivDir = File(tempRestoreDir, "files/arsiv")
+            val restoredPrefsDir = File(tempRestoreDir, "shared_prefs")
+
+            // Adım 3: Mevcut verileri geçici olarak yedekle (yeniden adlandırarak)
+            if (backupArsivDir.exists()) backupArsivDir.deleteRecursively()
+            if (backupPrefsDir.exists()) backupPrefsDir.deleteRecursively()
+
+            if (currentArsivDir.exists() && !currentArsivDir.renameTo(backupArsivDir)) {
+                return@withContext RestoreResult.RESTORE_FAILED
+            }
+            if (currentPrefsDir.exists() && !currentPrefsDir.renameTo(backupPrefsDir)) {
+                // Eğer arşiv klasörü yedeklemesi başarılı olduysa geri al
+                if (backupArsivDir.exists()) backupArsivDir.renameTo(currentArsivDir)
+                return@withContext RestoreResult.RESTORE_FAILED
             }
 
-            // Adım 3: Her şey yolundaysa, mevcut verileri temizle
-            cleanLocalData()
 
-            // Adım 4: Doğrulanmış verileri kalıcı yerlerine taşı
-            val appDataDir = File(context.applicationInfo.dataDir)
-            tempRestoreDir.copyRecursively(appDataDir, overwrite = true)
+            // Adım 4: Yeni verileri yerine taşı. Hata olursa eski veriler geri yüklenecek.
+            try {
+                if (restoredArsivDir.exists()) {
+                    restoredArsivDir.renameTo(currentArsivDir)
+                } else {
+                    currentArsivDir.mkdirs() // Yedekte hiç dosya yoksa boş bir klasör oluştur.
+                }
 
+                if (restoredPrefsDir.exists()){
+                    restoredPrefsDir.renameTo(currentPrefsDir)
+                } else {
+                    currentPrefsDir.mkdirs() // Yedekte hiç ayar yoksa boş bir klasör oluştur.
+                }
 
-            return@withContext RestoreResult.SUCCESS
+                // Her şey yolunda, geçici yedekleri temizle
+                if (backupArsivDir.exists()) backupArsivDir.deleteRecursively()
+                if (backupPrefsDir.exists()) backupPrefsDir.deleteRecursively()
 
+                return@withContext RestoreResult.SUCCESS
+            } catch (e: Exception) {
+                Log.e("DriveHelper", "Restore failed while moving new data. Reverting...", e)
+                // Hata oluştu! Eski verileri geri yükle.
+                if (currentArsivDir.exists()) currentArsivDir.deleteRecursively()
+                if (currentPrefsDir.exists()) currentPrefsDir.deleteRecursively()
+                if (backupArsivDir.exists()) backupArsivDir.renameTo(currentArsivDir)
+                if (backupPrefsDir.exists()) backupPrefsDir.renameTo(currentPrefsDir)
+                return@withContext RestoreResult.RESTORE_FAILED
+            }
         } catch(e: GoogleJsonResponseException) {
             Log.e("DriveHelper", "Google Drive API error during restore", e)
             return@withContext RestoreResult.DOWNLOAD_FAILED
         } catch (e: IOException) {
             Log.e("DriveHelper", "Network or I/O error during restore", e)
             return@withContext RestoreResult.RESTORE_FAILED
+        } catch (e: ZipException) {
+            Log.e("DriveHelper", "Backup validation failed: Invalid zip file", e)
+            return@withContext RestoreResult.VALIDATION_FAILED
         } catch (e: Exception) {
             Log.e("DriveHelper", "Unknown error during restore", e)
             return@withContext RestoreResult.UNKNOWN_ERROR
@@ -216,7 +254,9 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
     // YENİ EKLENDİ: Geri yükleme sonrası ayarları tamamlayan fonksiyon
     fun finalizeRestore(context: Context) {
         val prefs = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
-        // Değişiklik: .commit() kullanarak verinin senkronize yazılmasını sağla
+        // Değişiklik: .commit() kullanarak verinin senkronize yazılmasını sağla.
+        // Bu tercih, özellikle uygulama yeniden başlatılmadan hemen önce bu ayarların
+        // diske yazıldığından emin olmak için kritik ve doğru bir yaklaşımdır.
         prefs.edit()
             .putBoolean("isFirstLaunch", false)
             .putBoolean("has_seen_login_suggestion", true)
