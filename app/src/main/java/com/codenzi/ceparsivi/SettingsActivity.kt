@@ -261,6 +261,8 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
 
     override fun onStart() {
         super.onStart()
+        // Aktivite başladığında mevcut hesabı kontrol et.
+        // updateUI fonksiyonu, hesap null ise sessiz girişi deneyecek.
         updateUI(GoogleSignIn.getLastSignedInAccount(this))
     }
 
@@ -347,22 +349,38 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
 
     private fun updateUI(account: GoogleSignInAccount?) {
         if (account != null) {
+            // --- HESAP BULUNDU: Her şey normal ---
             binding.textViewDriveStatus.text = getString(R.string.status_signed_in_as, account.email)
             binding.buttonDriveSignInOut.text = getString(R.string.action_sign_out)
             setBackupButtonsEnabled(true)
             binding.switchAutoBackup.isEnabled = true
+            binding.textViewLastBackup.visibility = View.VISIBLE // Son yedekleme bilgisi için görünür yap
             driveHelper = GoogleDriveHelper(this, account)
             checkLastBackup()
         } else {
-            binding.textViewDriveStatus.text = getString(R.string.status_not_signed_in)
-            binding.textViewLastBackup.visibility = View.GONE
+            // --- HESAP BULUNAMADI (Restore sonrası gibi): Sessiz girişi dene ---
+            // Önce arayüzü "Kontrol ediliyor..." durumuna getir
+            binding.textViewDriveStatus.text = getString(R.string.last_backup_checking) // "Yedek kontrol ediliyor" metnini kullanabiliriz
             binding.buttonDriveSignInOut.text = getString(R.string.action_sign_in)
+            binding.textViewLastBackup.visibility = View.GONE // Henüz yedek bilgisi yok
             setBackupButtonsEnabled(false)
             binding.switchAutoBackup.isEnabled = false
             driveHelper = null
+
+            // Arka planda sessiz giriş yapmayı dene
+            googleSignInClient.silentSignIn().addOnCompleteListener(this) { task ->
+                if (task.isSuccessful) {
+                    // Sessiz giriş başarılı! UI'ı yeni hesapla tekrar güncelle.
+                    val signedInAccount = task.result
+                    updateUI(signedInAccount)
+                } else {
+                    // Sessiz giriş başarısız oldu, kullanıcı gerçekten giriş yapmamış.
+                    // Arayüzü "Giriş yapılmadı" olarak ayarla.
+                    binding.textViewDriveStatus.text = getString(R.string.status_not_signed_in)
+                }
+            }
         }
     }
-
     private fun setBackupButtonsEnabled(isEnabled: Boolean) {
         binding.buttonBackup.isEnabled = isEnabled
         binding.buttonRestore.isEnabled = isEnabled
