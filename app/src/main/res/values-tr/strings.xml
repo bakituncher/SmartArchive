@@ -214,6 +214,11 @@
     <string name="exporting_data_title">Veriler Dışa Aktarılıyor</string>
     <string name="exporting_data_message">Verileriniz paketleniyor, lütfen bekleyin...</string>
 
+    <string name="action_delete_drive_only">Sadece Drive\'daki yedeği sil</string>
+    <string name="action_delete_drive_and_device">Drive\'dan ve bu cihazdan sil</string>
+    <string name="delete_drive_only_confirmation_message">Bu işlem, Google Drive\'daki yedeğinizi kalıcı olarak silecektir. Cihazınızdaki yerel dosyalarınız etkilenmeyecektir. Bu işlem geri alınamaz. Emin misiniz?</string>
+    <string name="delete_drive_data_success">Google Drive yedeği başarıyla silindi.</string>
+
 
 
 

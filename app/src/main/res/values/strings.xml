@@ -223,6 +223,11 @@
     <string name="exporting_data_title">Exporting Data</string>
     <string name="exporting_data_message">Your data is being packaged, please wait...</string>
 
+    <string name="action_delete_drive_only">Delete Drive backup only</string>
+    <string name="action_delete_drive_and_device">Delete from Drive and this device</string>
+    <string name="delete_drive_only_confirmation_message">This action will permanently delete your backup from Google Drive. Your local files on this device will NOT be affected. This action cannot be undone. Are you sure?</string>
+    <string name="delete_drive_data_success">Google Drive backup deleted successfully.</string>
+
 
 
 </resources>

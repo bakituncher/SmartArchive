@@ -106,7 +106,7 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         }
         binding.buttonBackup.setOnClickListener { backupData() }
         binding.buttonRestore.setOnClickListener { restoreData() }
-        binding.buttonDeleteBackup.setOnClickListener { showDeleteConfirmationDialog() }
+        binding.buttonDeleteBackup.setOnClickListener { showDeleteOptionsDialog() }
         binding.switchAutoBackup.setOnCheckedChangeListener { _, isChecked ->
             handleAutoBackupSwitch(isChecked)
         }
@@ -484,31 +484,74 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         Runtime.getRuntime().exit(0)
     }
 
-    private fun showDeleteConfirmationDialog() {
+    private fun showDeleteOptionsDialog() {
+        val options = arrayOf(
+            getString(R.string.action_delete_drive_only),
+            getString(R.string.action_delete_drive_and_device)
+        )
+
         AlertDialog.Builder(this)
-            .setTitle(getString(R.string.delete_all_data_title))
-            .setMessage(getString(R.string.delete_all_data_message))
-            .setPositiveButton(getString(R.string.delete_all_data_confirm)) { _, _ -> deleteAllData() }
+            .setTitle(getString(R.string.action_delete_drive_data))
+            .setItems(options) { dialog, which ->
+                when (which) {
+                    0 -> showFinalDeleteConfirmationDialog(deleteLocal = false) // Sadece Drive
+                    1 -> showFinalDeleteConfirmationDialog(deleteLocal = true)  // Drive ve Cihaz
+                }
+                dialog.dismiss()
+            }
             .setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
 
-    private fun deleteAllData() {
+    private fun showFinalDeleteConfirmationDialog(deleteLocal: Boolean) {
+        val title: String
+        val message: String
+        val confirmButtonText: String
+
+        if (deleteLocal) {
+            title = getString(R.string.delete_all_data_title)
+            message = getString(R.string.delete_all_data_message)
+            confirmButtonText = getString(R.string.delete_all_data_confirm)
+        } else {
+            title = getString(R.string.action_delete_drive_only)
+            message = getString(R.string.delete_drive_only_confirmation_message)
+            confirmButtonText = getString(R.string.action_delete)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton(confirmButtonText) { _, _ ->
+                performDelete(deleteLocal)
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
+    }
+
+    private fun performDelete(deleteLocal: Boolean) {
         val dialog = AlertDialog.Builder(this)
             .setTitle(getString(R.string.deleting_data_title))
             .setMessage(getString(R.string.deleting_data_message))
             .setCancelable(false)
             .show()
+
         lifecycleScope.launch {
-            withContext(Dispatchers.IO) { driveHelper?.deleteAllData() }
+            withContext(Dispatchers.IO) {
+                driveHelper?.deleteBackupData(deleteLocal)
+            }
             dialog.dismiss()
 
-            CategoryManager.invalidate()
-            FileHashManager.invalidate()
-
-            Toast.makeText(this@SettingsActivity, getString(R.string.delete_data_success), Toast.LENGTH_LONG).show()
-
-            restartApp()
+            if (deleteLocal) {
+                // Hem cihaz hem Drive silindiyse
+                CategoryManager.invalidate()
+                FileHashManager.invalidate()
+                Toast.makeText(this@SettingsActivity, getString(R.string.delete_data_success), Toast.LENGTH_LONG).show()
+                restartApp()
+            } else {
+                // Sadece Drive silindiyse
+                Toast.makeText(this@SettingsActivity, getString(R.string.delete_drive_data_success), Toast.LENGTH_LONG).show()
+                checkLastBackup() // Yedek durumunu tekrar kontrol et
+            }
         }
     }
 

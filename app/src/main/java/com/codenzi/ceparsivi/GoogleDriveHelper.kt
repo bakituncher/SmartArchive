@@ -247,9 +247,12 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
         }
     }
 
-    suspend fun deleteAllData() = withContext(Dispatchers.IO) {
+    suspend fun deleteBackupData(deleteLocal: Boolean) = withContext(Dispatchers.IO) {
         try {
-            cleanLocalData()
+            if (deleteLocal) {
+                cleanLocalData()
+            }
+            // Drive'daki dosyayı sil
             val appFolderId = getAppFolderId() ?: return@withContext
             val query = "'$appFolderId' in parents and name='$backupFileName' and trashed=false"
             val fileList = drive.files().list().setQ(query).setSpaces("drive").setFields("files(id)").execute()
@@ -257,7 +260,8 @@ class GoogleDriveHelper(private val context: Context, account: GoogleSignInAccou
                 drive.files().delete(fileList.files[0].id).execute()
             }
         } catch(e: Exception) {
-            Log.e("DriveHelper", "Error deleting all data", e)
+            Log.e("DriveHelper", "Error deleting data", e)
+            // Hata durumunu çağıran yere bildirmek için bir sonuç döndürülebilir veya hata fırlatılabilir.
         }
     }
 
