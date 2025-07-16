@@ -1,5 +1,3 @@
-// Konum: app/src/main/java/com/codenzi/ceparsivi/SaveFileActivity.kt
-
 package com.codenzi.ceparsivi
 
 import android.app.Activity
@@ -11,13 +9,9 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.util.Log
-import android.view.LayoutInflater
 import android.widget.ArrayAdapter
-import android.widget.AutoCompleteTextView
 import android.widget.ImageView
-import android.widget.ProgressBar
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.createBitmap
 import androidx.core.view.isVisible
@@ -129,13 +123,12 @@ class SaveFileActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
     }
 
     private fun updateCategoryDropdown() {
-        val allCategories = CategoryManager.getCategories(this)
-        val defaultCategories = CategoryManager.getDefaultCategories(this)
-        // Sadece kullanıcı tarafından oluşturulan kategorileri al ve sırala
-        val userCategories = allCategories.filter { !defaultCategories.contains(it) }.sorted()
+        // Sadece kullanıcı tarafından oluşturulmuş kategorileri al
+        val userCategories = CategoryManager.getDisplayCategories(this)
+            .filter { !CategoryManager.isDefaultCategory(this, it) }
+            .sorted()
 
         val dropdownList = mutableListOf(selectCategoryString)
-        // Sadece kullanıcı tarafından oluşturulan kategorileri listeye ekle
         dropdownList.addAll(userCategories)
         dropdownList.add(addNewCategoryString)
 

@@ -1,5 +1,3 @@
-// Konum: app/src/main/java/com/codenzi/ceparsivi/MainActivity.kt
-
 package com.codenzi.ceparsivi
 
 import android.Manifest
@@ -14,6 +12,7 @@ import android.util.DisplayMetrics
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -40,6 +39,8 @@ import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.google.android.ump.ConsentInformation
+import com.google.android.ump.UserMessagingPlatform
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -49,10 +50,6 @@ import java.text.SimpleDateFormat
 import java.util.ArrayDeque
 import java.util.Date
 import java.util.Locale
-import android.view.View
-// YENİ EKLENDİ: Rıza durumunu kontrol etmek için
-import com.google.android.ump.ConsentInformation
-import com.google.android.ump.UserMessagingPlatform
 
 class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, ActionMode.Callback, FileDetailsBottomSheet.FileDetailsListener {
 
@@ -71,9 +68,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     private val TAG = "MainActivity_AdMob"
     private lateinit var billingManager: BillingManager
     private var isUserPremium = false
-    // YENİ EKLENDİ: Rıza bilgisi nesnesi
     private lateinit var consentInformation: ConsentInformation
-
 
     private enum class SortOrder {
         DATE_DESC, NAME_ASC, NAME_DESC, SIZE_ASC, SIZE_DESC
@@ -126,7 +121,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // YENİ EKLENDİ: Rıza bilgisi nesnesini başlat
         consentInformation = UserMessagingPlatform.getConsentInformation(this)
 
         setupBillingForMain()
@@ -164,7 +158,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             billingManager.isPremium.collectLatest { isPremium ->
                 isUserPremium = isPremium
                 if (!isPremium && adView == null) {
-                    // Reklamları yüklemeden önce reklam isteği iznini kontrol et
                     if (consentInformation.canRequestAds()) {
                         binding.adViewContainer.visibility = View.VISIBLE
                         loadBanner()
@@ -180,7 +173,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             }
         }
     }
-
 
     override fun onResume() {
         super.onResume()
@@ -206,17 +198,12 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     }
 
     private fun loadBanner() {
-        // Reklam isteği yapılamıyorsa, fonksiyonu erken bitir.
-        if (!consentInformation.canRequestAds()) {
-            return
-        }
+        if (!consentInformation.canRequestAds()) return
 
         adView = AdView(this)
         binding.adViewContainer.addView(adView)
 
-        // DEĞİŞİKLİK: Reklam isteğini rıza durumuna göre oluştur
         val adRequestBuilder = AdRequest.Builder()
-        // Rıza durumu "Gerekli" ise (EEA/UK kullanıcısı ve izin vermedi), NPA parametresini ekle
         if (consentInformation.consentStatus == ConsentInformation.ConsentStatus.REQUIRED) {
             val extras = Bundle()
             extras.putString("npa", "1")
@@ -242,14 +229,9 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     }
 
     private fun loadInterstitialAd() {
-        // Reklam isteği yapılamıyorsa, fonksiyonu erken bitir.
-        if (!consentInformation.canRequestAds()) {
-            return
-        }
+        if (!consentInformation.canRequestAds()) return
 
-        // DEĞİŞİKLİK: Reklam isteğini rıza durumuna göre oluştur
         val adRequestBuilder = AdRequest.Builder()
-        // Rıza durumu "Gerekli" ise (EEA/UK kullanıcısı ve izin vermedi), NPA parametresini ekle
         if (consentInformation.consentStatus == ConsentInformation.ConsentStatus.REQUIRED) {
             val extras = Bundle()
             extras.putString("npa", "1")
@@ -270,7 +252,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             }
         })
     }
-
 
     private fun showInterstitialAd() {
         if (isUserPremium) return
@@ -483,13 +464,15 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             SortOrder.SIZE_DESC -> compareByDescending { it.size }
             SortOrder.DATE_DESC -> compareByDescending<ArchivedFile> { File(it.filePath).lastModified() }
         }
-        val categoryOrder = CategoryManager.getCategories(this).sorted()
+
+        val categoryOrder = CategoryManager.getDisplayCategories(this)
         val sortedFiles = allFiles.sortedWith(
             compareBy<ArchivedFile> {
                 val index = categoryOrder.indexOf(it.category)
                 if (index == -1) Int.MAX_VALUE else index
             }.then(secondaryComparator)
         )
+
         val query = (binding.toolbar.menu.findItem(R.id.action_search)?.actionView as? SearchView)?.query?.toString()
         val filteredFiles = if (query.isNullOrBlank()) {
             sortedFiles
@@ -524,7 +507,8 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         if (files.isEmpty()) return emptyList()
         val listWithHeaders = mutableListOf<ListItem>()
         val groupedByCategory = files.groupBy { it.category }
-        val categoryOrder = CategoryManager.getCategories(this).sorted()
+        val categoryOrder = CategoryManager.getDisplayCategories(this)
+
         categoryOrder.forEach { categoryName ->
             groupedByCategory[categoryName]?.let { filesInCategory ->
                 if (filesInCategory.isNotEmpty()) {
@@ -694,10 +678,10 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     private fun showCategorySelectionDialog(filesToMove: List<ArchivedFile>) {
         if (filesToMove.isEmpty()) return
         val currentCategories = filesToMove.map { it.category }.toSet()
-        val categories = CategoryManager.getCategories(this)
+        val categories = CategoryManager.getDisplayCategories(this)
             .filter { !currentCategories.contains(it) }
-            .sorted()
             .toTypedArray()
+
         if (categories.isEmpty()) {
             Toast.makeText(this, getString(R.string.no_other_category_to_move), Toast.LENGTH_SHORT).show()
             return

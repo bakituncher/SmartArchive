@@ -70,16 +70,14 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
             }
         }
 
-    // VERİ İNDİRME İZNİ İÇİN YENİ EKLENDİ
     private val requestStoragePermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
             if (isGranted) {
-                exportUserData() // İzin verildiyse işlemi tekrar başlat
+                exportUserData()
             } else {
                 Toast.makeText(this, "Storage permission is required to save the file.", Toast.LENGTH_LONG).show()
             }
         }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -515,8 +513,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
     }
 
     private fun exportUserData() {
-        // Android 10 (API 29) ve üzeri için izin gerekmez.
-        // Android 9 (API 28) ve altı için WRITE_EXTERNAL_STORAGE izni kontrolü yapılır.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 requestStoragePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -564,7 +560,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
                     }
                 }
 
-                // Cihaz versiyonuna göre kaydetme işlemi
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     val resolver = contentResolver
                     val contentValues = ContentValues().apply {
@@ -605,7 +600,6 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
         }
     }
 
-
     override fun onCategorySaved(newName: String, oldName: String?) {
         if (oldName == null) {
             if (!CategoryManager.addCategory(this, newName)) {
@@ -640,7 +634,7 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
     }
 
     private fun showManageCategoriesDialog() {
-        val categories = CategoryManager.getCategories(this).sorted().toTypedArray()
+        val categories = CategoryManager.getDisplayCategories(this).toTypedArray()
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.manage_categories))
             .setItems(categories) { _, which ->
@@ -655,9 +649,10 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
 
     private fun showCategoryActionsDialog(categoryName: String) {
         val actions = mutableListOf(getString(R.string.action_rename))
-        if (!CategoryManager.getDefaultCategories(this).contains(categoryName)) {
+        if (!CategoryManager.isDefaultCategory(this, categoryName)) {
             actions.add(getString(R.string.action_delete))
         }
+
         AlertDialog.Builder(this)
             .setTitle(categoryName)
             .setItems(actions.toTypedArray()) { _, which ->
