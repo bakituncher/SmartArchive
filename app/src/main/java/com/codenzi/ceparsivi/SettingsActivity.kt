@@ -242,9 +242,12 @@ class SettingsActivity : AppCompatActivity(), CategoryEntryDialogFragment.Catego
     private fun setupPrivacyOptionsButton() {
         val consentInformation = UserMessagingPlatform.getConsentInformation(this)
 
+        // Butonun görünürlüğünü rıza gerekliliğine göre ayarla
         if (consentInformation.privacyOptionsRequirementStatus == com.google.android.ump.ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED) {
             binding.textViewPrivacySettings.visibility = View.VISIBLE
             binding.dividerPrivacySettings.visibility = View.VISIBLE
+
+            // Butona tıklandığında rıza formunu tekrar göster
             binding.textViewPrivacySettings.setOnClickListener {
                 UserMessagingPlatform.showPrivacyOptionsForm(this) { formError ->
                     if (formError != null) {

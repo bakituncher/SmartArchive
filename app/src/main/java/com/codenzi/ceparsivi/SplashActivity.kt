@@ -22,8 +22,7 @@ class SplashActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         // Bu aktivitenin bir arayüzü (UI) olmadığı için setContentView çağrısı yok.
 
-        // Rıza formu için standart parametreler. Test ayarları kaldırıldı.
-        // Sistem artık kullanıcının konumuna göre formu gösterip göstermeyeceğine kendisi karar verecek.
+        // Rıza formu için standart parametreler.
         val params = ConsentRequestParameters.Builder()
             .setTagForUnderAgeOfConsent(false)
             .build()

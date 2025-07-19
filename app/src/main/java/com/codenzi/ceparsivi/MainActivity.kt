@@ -70,6 +70,9 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     private var isUserPremium = false
     private lateinit var consentInformation: ConsentInformation
 
+    // --- YENİ EKLENDİ: Reklamların başlatılıp başlatılmadığını takip eden bayrak ---
+    private var areAdsInitialized = false
+
     private enum class SortOrder {
         DATE_DESC, NAME_ASC, NAME_DESC, SIZE_ASC, SIZE_DESC
     }
@@ -157,19 +160,9 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         lifecycleScope.launch {
             billingManager.isPremium.collectLatest { isPremium ->
                 isUserPremium = isPremium
-                if (!isPremium && adView == null) {
-                    if (consentInformation.canRequestAds()) {
-                        binding.adViewContainer.visibility = View.VISIBLE
-                        loadBanner()
-                        loadInterstitialAd()
-                    } else {
-                        binding.adViewContainer.visibility = View.GONE
-                    }
-                } else if (isPremium) {
-                    adView?.destroy()
-                    adView = null
-                    binding.adViewContainer.visibility = View.GONE
-                }
+                // Reklamları yüklemek için ilk deneme burada yapılır.
+                // Yarış durumu nedeniyle burada başarısız olabilir.
+                tryToLoadAds()
             }
         }
     }
@@ -177,15 +170,51 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     override fun onResume() {
         super.onResume()
         billingManager.queryPurchases()
-        if (!isUserPremium) adView?.resume()
+        adView?.resume()
         val newTheme = ThemeManager.getTheme(this)
         if (activeTheme != null && activeTheme != newTheme) {
             ThemeManager.applyTheme(newTheme)
             recreate()
             return
         }
+
+        // --- KESİN ÇÖZÜM: YARIŞ DURUMUNU GİDERMEK İÇİN BURADA TEKRAR KONTROL ET ---
+        // Eğer reklamlar daha önce yüklenemediyse (areAdsInitialized false ise), burada tekrar dene.
+        // onResume, onCreate'den sonra ve aktivite görünür hale geldiğinde çağrıldığı için
+        // rıza durumunun güncellenmiş olma ihtimali daha yüksektir.
+        if (!areAdsInitialized) {
+            Log.d("AdMobDebug", "onResume içinde reklam yüklemeyi tekrar deniyorum.")
+            tryToLoadAds()
+        }
+        // --------------------------------------------------------------------------
+
         lifecycleScope.launch { updateFullList() }
     }
+
+    // --- YENİ EKLENDİ: Reklam yükleme mantığını merkezileştiren yardımcı fonksiyon ---
+    private fun tryToLoadAds() {
+        // Eğer kullanıcı premium ise veya reklamlar zaten başlatıldıysa, bir daha deneme.
+        if (isUserPremium || areAdsInitialized) {
+            binding.adViewContainer.visibility = View.GONE
+            return
+        }
+
+        Log.d("AdMobDebug", "Reklam yükleme deneniyor. Kullanıcı Premium mu?: $isUserPremium")
+        val canRequest = consentInformation.canRequestAds()
+        Log.d("AdMobDebug", "Reklam İsteği Yapılabilir mi? (canRequestAds): $canRequest")
+
+        if (canRequest) {
+            binding.adViewContainer.visibility = View.VISIBLE
+            loadBanner()
+            loadInterstitialAd()
+            areAdsInitialized = true // Reklamlar başarıyla istendi, bayrağı ayarla.
+            Log.d("AdMobDebug", "Reklam isteği gönderildi. areAdsInitialized = true")
+        } else {
+            binding.adViewContainer.visibility = View.GONE
+            Log.d("AdMobDebug", "Reklam isteği için izin yok. Container gizlendi.")
+        }
+    }
+
 
     override fun onPause() {
         super.onPause()
@@ -198,13 +227,13 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     }
 
     private fun loadBanner() {
-        if (!consentInformation.canRequestAds()) return
-
+        // Bu fonksiyonun içinde değişiklik yok, olduğu gibi kalabilir.
+        if (adView != null) { // Eğer zaten bir banner varsa tekrar oluşturma
+            return
+        }
         adView = AdView(this)
         binding.adViewContainer.addView(adView)
-
         val adRequest = AdRequest.Builder().build()
-
         val adWidth = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val windowMetrics = windowManager.currentWindowMetrics
             (windowMetrics.bounds.width() / resources.displayMetrics.density).toInt()
@@ -215,7 +244,6 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
             windowManager.defaultDisplay.getMetrics(displayMetrics)
             (displayMetrics.widthPixels / resources.displayMetrics.density).toInt()
         }
-
         val adSize = AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(this, adWidth)
         adView?.adUnitId = getString(R.string.admob_banner_ad_unit_id)
         adView?.setAdSize(adSize)
@@ -223,23 +251,25 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     }
 
     private fun loadInterstitialAd() {
-        if (!consentInformation.canRequestAds()) return
+        // Bu fonksiyonun içinde değişiklik yok, olduğu gibi kalabilir.
+        if (mInterstitialAd != null) return // Zaten yüklü bir reklam varsa tekrar yükleme
 
         val adRequest = AdRequest.Builder().build()
-
         val adUnitId = getString(R.string.admob_interstitial_ad_unit_id)
         InterstitialAd.load(this, adUnitId, adRequest, object : InterstitialAdLoadCallback() {
             override fun onAdFailedToLoad(adError: LoadAdError) {
                 Log.e(TAG, "InterstitialAd failed to load: ${adError.message}")
                 mInterstitialAd = null
             }
-
             override fun onAdLoaded(interstitialAd: InterstitialAd) {
                 Log.d(TAG, "InterstitialAd was loaded.")
                 mInterstitialAd = interstitialAd
             }
         })
     }
+
+    // ... (MainActivity.kt dosyasının geri kalanını olduğu gibi bırakın)
+    // ... (deleteFiles, showAddOptionsDialog, ve diğer tüm fonksiyonlar...)
 
     private fun showInterstitialAd() {
         if (isUserPremium) return
