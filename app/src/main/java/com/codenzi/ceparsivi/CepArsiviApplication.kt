@@ -30,9 +30,9 @@ class CepArsiviApplication : Application() {
 
         MobileAds.initialize(this) {}
         // Test cihazı yapılandırmasını güvenli bir şekilde burada yapıyoruz.
-        val testDeviceIds = Arrays.asList("BCF3B4664E529BDE4CC3E6B2CB090F7B")
-        val configuration = RequestConfiguration.Builder().setTestDeviceIds(testDeviceIds).build()
-        MobileAds.setRequestConfiguration(configuration)
+        // val testDeviceIds = Arrays.asList("BCF3B4664E529BDE4CC3E6B2CB090F7B")
+        // val configuration = RequestConfiguration.Builder().setTestDeviceIds(testDeviceIds).build()
+        // MobileAds.setRequestConfiguration(configuration)
         areAdsInitialized = true
     }
 
