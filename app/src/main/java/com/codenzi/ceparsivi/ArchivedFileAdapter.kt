@@ -1,6 +1,7 @@
 package com.codenzi.ceparsivi
 
 import android.content.Context
+import com.codenzi.ceparsivi.R
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.Color

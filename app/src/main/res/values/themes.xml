@@ -28,8 +28,6 @@
         <item name="colorPrimaryInverse">@color/inverse_primary</item>
 
         <item name="android:windowBackground">@drawable/background_gradient</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar" tools:targetApi="23">true</item>
         <item name="windowActionModeOverlay">true</item>
     </style>

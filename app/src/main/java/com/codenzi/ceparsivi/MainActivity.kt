@@ -15,6 +15,7 @@ import android.view.MenuItem
 import android.view.View
 import android.webkit.MimeTypeMap
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -23,7 +24,6 @@ import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
@@ -115,8 +115,8 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
         activeTheme = ThemeManager.getTheme(this)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -128,8 +128,8 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             binding.appBarLayout.updatePadding(top = systemBars.top)
-            view.updatePadding(left = systemBars.left, right = systemBars.right, bottom = systemBars.bottom)
-            binding.recyclerViewFiles.setPadding(0, 0, 0, 0)
+            binding.adViewContainer.updatePadding(bottom = systemBars.bottom)
+            binding.buttonAddFile.translationY = -systemBars.bottom.toFloat()
             insets
         }
 
@@ -203,13 +203,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
         adView = AdView(this)
         binding.adViewContainer.addView(adView)
 
-        val adRequestBuilder = AdRequest.Builder()
-        if (consentInformation.consentStatus == ConsentInformation.ConsentStatus.REQUIRED) {
-            val extras = Bundle()
-            extras.putString("npa", "1")
-            adRequestBuilder.addNetworkExtrasBundle(com.google.ads.mediation.admob.AdMobAdapter::class.java, extras)
-        }
-        val adRequest = adRequestBuilder.build()
+        val adRequest = AdRequest.Builder().build()
 
         val adWidth = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val windowMetrics = windowManager.currentWindowMetrics
@@ -231,13 +225,7 @@ class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener, Action
     private fun loadInterstitialAd() {
         if (!consentInformation.canRequestAds()) return
 
-        val adRequestBuilder = AdRequest.Builder()
-        if (consentInformation.consentStatus == ConsentInformation.ConsentStatus.REQUIRED) {
-            val extras = Bundle()
-            extras.putString("npa", "1")
-            adRequestBuilder.addNetworkExtrasBundle(com.google.ads.mediation.admob.AdMobAdapter::class.java, extras)
-        }
-        val adRequest = adRequestBuilder.build()
+        val adRequest = AdRequest.Builder().build()
 
         val adUnitId = getString(R.string.admob_interstitial_ad_unit_id)
         InterstitialAd.load(this, adUnitId, adRequest, object : InterstitialAdLoadCallback() {

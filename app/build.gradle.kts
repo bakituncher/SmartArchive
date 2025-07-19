@@ -18,8 +18,8 @@ android {
         applicationId = "com.codenzi.ceparsivi"
         minSdk = 24
         targetSdk = 35
-        versionCode = 11
-        versionName = "1.1.4"
+        versionCode = 12
+        versionName = "1.1.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -43,6 +43,8 @@ android {
 
     buildFeatures {
         viewBinding = true
+        // YENİ EKLENEN SATIR: BuildConfig oluşturulmasını garanti altına alır.
+        buildConfig = true
     }
 
     packagingOptions {
@@ -97,4 +99,5 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
-    implementation("com.android.billingclient:billing-ktx:7.0.0")}
+    implementation("com.android.billingclient:billing-ktx:7.0.0")
+}
